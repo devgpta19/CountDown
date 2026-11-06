@@ -149,3 +149,4 @@ with open('favicon.png', 'wb') as f:
     f.write(png_192)
 
 print("Icon generation completed!")
+

@@ -60,6 +60,13 @@ python -m http.server 3000
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### 3. Automated End-to-End Testing
+Run the headless Chrome verification suite (23 automated tests covering live timers, timezones, radial dials, milestone interactions, 2D grid matrix, calendar exports, and theming):
+```bash
+npm test
+```
+Visual verification screenshots are generated into `screenshots/dashboard-dark-mode.png` and `screenshots/dashboard-light-mode.png`.
+
 ---
 
 ## Native Mobile App Packaging (Capacitor)
@@ -110,3 +117,4 @@ CountDown/
 ## License
 
 MIT
+
