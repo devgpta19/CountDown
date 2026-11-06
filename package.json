@@ -1,0 +1,40 @@
+{
+  "name": "t-minus-countdown-dashboard",
+  "version": "1.0.0",
+  "description": "Zero-backend, client-side, production-grade countdown & milestone productivity dashboard with 2D matrix widget grid and calendar sync.",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -l 3000 .",
+    "dev": "npx serve -l 3000 .",
+    "serve": "npx serve -l 3000 .",
+    "generate-icons": "python scripts/generate_icons.py",
+    "cap:init": "npx cap init \"T-Minus Countdown\" \"com.tminus.countdown\" --web-dir \".\"",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android"
+  },
+  "keywords": [
+    "countdown",
+    "milestone",
+    "dashboard",
+    "react",
+    "tailwind",
+    "calendar-sync",
+    "pwa",
+    "capacitor",
+    "matrix-grid"
+  ],
+  "author": "Antigravity Engineering",
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "serve": "^14.2.4"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/local-notifications": "^6.0.0"
+  }
+}
