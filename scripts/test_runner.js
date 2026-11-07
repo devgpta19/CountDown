@@ -159,14 +159,14 @@ async function runTests() {
     });
     assert('Progress Updated after Milestone Click', updatedProgress === '17%', updatedProgress);
 
-    console.log('\n--- TEST SUITE 5: 2D Matrix Minimized Limits (minW: 2, minH: 1) ---');
+    console.log('\n--- TEST SUITE 5: 2D Matrix Minimized Limits (minW: 1, minH: 1 & One-Touch Minimize) ---');
     // Test lowering component to minimal height (h: 1)
     await page.evaluate(() => {
       const saved = localStorage.getItem('custom_coord_grid_layout');
       const layout = saved ? JSON.parse(saved) : {
-        countdown:  { col: 1, row: 1, w: 4, h: 4 },
-        milestones: { col: 5, row: 1, w: 4, h: 4 },
-        progress:   { col: 1, row: 5, w: 8, h: 2 }
+        countdown:  { col: 1, row: 1, w: 4, h: 6 },
+        milestones: { col: 5, row: 1, w: 4, h: 6 },
+        progress:   { col: 1, row: 7, w: 8, h: 3 }
       };
       // Set ultra-slim and narrow layouts
       layout.countdown = { col: 1, row: 1, w: 4, h: 1 };
@@ -190,6 +190,25 @@ async function runTests() {
       return text.includes('ROADMAP') && text.includes('%');
     });
     assert('Ultra-Slim Progress (h:1) Renders Inline Strip', ultraSlimProgressRendered);
+
+    // Test One-Touch Minimize & Expand Button
+    const oneTouchMinimizeWorks = await page.evaluate(() => {
+      const minBtn = document.querySelector('button[title*="Minimize"]');
+      if (minBtn) {
+        minBtn.click();
+        return true;
+      }
+      return false;
+    });
+    assert('One-Touch Minimize Button Collapses Widget to Lowest Limit', oneTouchMinimizeWorks);
+
+    await new Promise((r) => setTimeout(r, 300));
+    // Expand it back
+    await page.evaluate(() => {
+      const expBtn = document.querySelector('button[title*="Expand"]');
+      if (expBtn) expBtn.click();
+    });
+    await new Promise((r) => setTimeout(r, 300));
 
     console.log('\n--- TEST SUITE 6: Drag & Resize Physics (Snap-Back Fix Verification) ---');
     // Reset grid to default
@@ -299,6 +318,21 @@ async function runTests() {
     console.log('\n--- TEST SUITE 8: Mobile Viewport (390x844 iPhone) Verification ---');
     await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
     await new Promise((r) => setTimeout(r, 400));
+
+    // Verify widgets are full width (> 340px) on mobile and not squished into narrow columns
+    const mobileWidgetWidths = await page.evaluate(() => {
+      const widgets = Array.from(document.querySelectorAll('.dashboard-widget'));
+      return widgets.map((w) => Math.round(w.getBoundingClientRect().width));
+    });
+    const allWidgetsFullWidthOnMobile = mobileWidgetWidths.length > 0 && mobileWidgetWidths.every((w) => w >= 340);
+    assert('Mobile Widgets Stack Full-Width (>= 340px, Never Squished)', allWidgetsFullWidthOnMobile, `Widths: ${mobileWidgetWidths.join(', ')}px`);
+
+    // Verify date badges have whitespace-nowrap preventing multi-line splitting
+    const hasWhitespaceNowrapOnDates = await page.evaluate(() => {
+      const dateSpans = Array.from(document.querySelectorAll('span.whitespace-nowrap'));
+      return dateSpans.some((s) => /Nov\s+\d{2},\s+\d{4}/.test(s.innerText));
+    });
+    assert('Milestone Date Badges Use whitespace-nowrap (No Vertical Splitting)', hasWhitespaceNowrapOnDates);
 
     // Capture mobile screenshots
     osEnsureDir(path.join(ROOT_DIR, 'screenshots'));

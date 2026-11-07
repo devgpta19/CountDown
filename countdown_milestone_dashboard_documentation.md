@@ -1921,3 +1921,91 @@ If your goal is to build an **actual iOS Home Screen Widget** (that sits next to
 
 * **For immediate testing right now**: Add `manifest.json` and deploy to Vercel/Netlify. Open Safari on iPhone, tap "Share", and select **"Add to Home Screen"** (PWA).
 * **For publishing to the Apple App Store & Google Play Store**: Use **Capacitor**. It uses your exact `index.html` code, requires no rewrite, and provides native haptics and notifications.
+
+
+---
+
+## 8. Mobile Viewport Refinement, Stable Drag Physics & Lowest Minimization Limits
+
+### 8.1 Root Cause Analysis of Mobile Squishing
+
+When running on mobile devices (e.g. 360px – 390px viewports like iPhone or modern Android phones), applying an explicit 8-column CSS grid where widgets had fixed coordinate spans (`gridColumn: 1 / span 4` for Countdown and `gridColumn: 5 / span 4` for Milestones) produced columns measuring only ~140px in width. 
+
+This resulted in:
+1. **Severe lateral crushing**: Milestone items, tag badges, and calendar icons were forced into a narrow 140px slit, causing words to truncate with ellipses (`Audit ...`, `Finaliz...`, `Compl...`) and dates to split vertically across 3 lines (`Nov \n 06, \n 2026`).
+2. **Countdown distortion**: The 4 numeric countdown digit boxes were forced into a cramped 2x2 grid at the bottom, leaving empty space above.
+3. **Service worker stale caching**: Browser instances had cached older HTML bundles (`t-minus-v1`) that still carried `truncate` classes on titles.
+
+---
+
+### 8.2 Responsive Fluid Stack Architecture
+
+The layout engine now differentiates between mobile touch screens (`< 640px`) and tablet/desktop workspaces (`>= 640px`):
+
+```css
+/* Responsive Dashboard Grid & Widgets */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-auto-rows: minmax(44px, auto);
+  gap: 16px;
+}
+
+@media (max-width: 639px) {
+  .dashboard-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .dashboard-widget {
+    width: 100% !important;
+    min-width: 100% !important;
+    order: var(--widget-order, 0);
+  }
+  /* Horizontal resize handles hidden on mobile */
+  .handle-w, .handle-e, .handle-nw, .handle-ne, .handle-sw, .handle-se {
+    display: none !important;
+  }
+}
+```
+
+* **On Mobile (`< 640px`)**: Widgets automatically occupy 100% width, stacked vertically in priority order (`order: (row * 10) + col`), guaranteeing ample horizontal room for full titles, descriptions, and metadata.
+* **On Desktop (`>= 640px`)**: The full 8-column 2D matrix coordinate grid is utilized with 8-way directional resize handles.
+
+---
+
+### 8.3 Lowest Minimization Limits: 44px Base Matrix Row & One-Touch Minimize
+
+To allow widgets to be minimized much lower, the grid row base height was reduced from 85px to **44px** (`minmax(44px, auto)`).
+* `MIN_CONSTRAINTS`: Lowered to `{ minW: 1, minH: 1 }` for all widgets.
+* At `h: 1`, widgets compress into an ultra-slim single-line 44px bar.
+* **One-Touch Minimize Button**: Each widget header features a dedicated minimize/maximize toggle icon (`minimize` / `maximize`). Clicking it immediately collapses the component to its lowest limit (44px bar) or expands it back with zero drag effort required.
+
+---
+
+### 8.4 Monotonic Physics Engine & Collision Stabilization
+
+Previous dragging and resizing behavior suffered from violent oscillations and jitter because `compactLayout` was invoked on every pointer move event.
+
+**Engineered Stabilization**:
+1. **Pointer Capture**: `handleStartDrag` and `handleStartResize` invoke `e.target.setPointerCapture(e.pointerId)` so tracking never drops outside window or touch boundaries.
+2. **Monotonic Cascade Resolution**: Collisions are resolved purely downwards in a single-direction cascade without running high-frequency vertical compaction during pointer movement.
+3. **Lock Active Target on Release**: On `pointerup`, the target widget remains locked exactly where placed, and pointer capture is cleanly released.
+
+---
+
+### 8.5 Symmetric Typography & Non-Breaking Date Metadata
+
+All remaining `truncate` classes on milestone items and card headers have been replaced with responsive wrapping:
+* **Milestone Titles**: `text-xs sm:text-sm font-semibold break-words leading-snug`
+* **Descriptions**: `text-[10px] sm:text-[11px] text-[#8EB69B] font-sans mt-0.5 break-words leading-relaxed`
+* **Date Badge**: `whitespace-nowrap font-mono text-[9px] sm:text-[10px]` ensures `Nov 06, 2026` never splits across lines.
+* **Right-Aligned Badges**: Tag pill (`T-10`) and `+GCal` link are symmetrically anchored to the upper right corner.
+
+---
+
+### 8.6 Network-First Service Worker Strategy (`sw.js` v3)
+
+`sw.js` has been updated to cache version `t-minus-v3` with a **Network-First** strategy for HTML document requests:
+* When online, navigation requests fetch the latest `index.html` from the server immediately, bypassing stale local caches.
+* When offline, it automatically serves the pre-cached PWA offline bundle.

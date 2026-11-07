@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>T-Minus Countdown & Milestone Dashboard</title>
   
   <!-- PWA & Mobile Web App Meta Tags -->
@@ -100,6 +103,31 @@
       background-image: 
         linear-gradient(to right, rgba(35, 83, 71, 0.08) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(35, 83, 71, 0.08) 1px, transparent 1px);
+    }
+
+    /* Responsive Dashboard Grid & Widgets */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-auto-rows: minmax(44px, auto);
+      gap: 16px;
+    }
+
+    @media (max-width: 639px) {
+      .dashboard-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+      }
+      .dashboard-widget {
+        width: 100% !important;
+        min-width: 100% !important;
+        order: var(--widget-order, 0);
+      }
+      /* Hide horizontal edge resize handles on mobile since widgets are full width */
+      .handle-w, .handle-e, .handle-nw, .handle-ne, .handle-sw, .handle-se {
+        display: none !important;
+      }
     }
 
     .drag-handle {
@@ -356,6 +384,42 @@
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
             </svg>
           );
+        case "minus":
+          return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          );
+        case "maximize":
+          return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          );
+        case "minimize":
+          return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 14 10 14 10 20"></polyline>
+              <polyline points="20 10 14 10 14 4"></polyline>
+              <line x1="14" y1="10" x2="21" y2="3"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          );
+        case "chevron-down":
+          return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          );
+        case "chevron-up":
+          return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+          );
         default:
           return null;
       }
@@ -427,10 +491,17 @@
       const [newMilestoneDesc, setNewMilestoneDesc] = useState("");
       const [newMilestoneDate, setNewMilestoneDate] = useState("");
 
+      // Lowest limits: Allowed to minimize much lower to ultra-compact single row (h: 1, w: 1)
+      const MIN_CONSTRAINTS = {
+        countdown: { minW: 1, minH: 1 },
+        milestones: { minW: 1, minH: 1 },
+        progress: { minW: 1, minH: 1 }
+      };
+
       const DEFAULT_GRID_LAYOUT = {
-        countdown:  { col: 1, row: 1, w: 4, h: 4 },
-        milestones: { col: 5, row: 1, w: 4, h: 4 },
-        progress:   { col: 1, row: 5, w: 8, h: 2 }
+        countdown:  { col: 1, row: 1, w: 4, h: 6 },
+        milestones: { col: 5, row: 1, w: 4, h: 6 },
+        progress:   { col: 1, row: 7, w: 8, h: 3 }
       };
 
       const [gridLayout, setGridLayout] = useState(() => {
@@ -441,18 +512,48 @@
         return DEFAULT_GRID_LAYOUT;
       });
 
+      // Minimized state toggle for widgets
+      const [minimized, setMinimized] = useState(() => {
+        try {
+          const saved = localStorage.getItem("tminus_minimized_widgets");
+          return saved ? JSON.parse(saved) : {};
+        } catch {
+          return {};
+        }
+      });
+
+      const toggleMinimize = (id, e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        setMinimized((prev) => {
+          const next = { ...prev, [id]: !prev[id] };
+          try {
+            localStorage.setItem("tminus_minimized_widgets", JSON.stringify(next));
+          } catch(err) {}
+          return next;
+        });
+        triggerHaptic("light");
+      };
+
       const [activeDragId, setActiveDragId] = useState(null);
       const [resizingId, setResizingId] = useState(null);
       const [hoverCoord, setHoverCoord] = useState(null);
       const gridContainerRef = useRef(null);
-      const dragStartOffset = useRef({ mouseX: 0, mouseY: 0, grabColOffset: 0, grabRowOffset: 0, origCol: 1, origRow: 1, origW: 4, origH: 4, isDraggingActive: false });
-      
-      // Lowest limits: Allowed to minimize much lower as requested!
-      const MIN_CONSTRAINTS = {
-        countdown: { minW: 2, minH: 1 },
-        milestones: { minW: 2, minH: 1 },
-        progress: { minW: 2, minH: 1 }
-      };
+      const dragStartOffset = useRef({
+        pointerId: null,
+        targetEl: null,
+        mouseX: 0,
+        mouseY: 0,
+        grabColOffset: 0,
+        grabRowOffset: 0,
+        origCol: 1,
+        origRow: 1,
+        origW: 4,
+        origH: 6,
+        isDraggingActive: false
+      });
 
       const activeDragIdRef = useRef(null);
       const resizingIdRef = useRef(null);
@@ -483,83 +584,57 @@
         } catch(e) {}
       };
 
-      // Gravity compaction pass that respects and preserves the active widget's placement
-      const compactLayout = (layout, preserveId) => {
-        const sortedKeys = Object.keys(layout).sort((a, b) => {
-          if (a === preserveId) return -1;
-          if (b === preserveId) return 1;
-          return layout[a].row - layout[b].row;
-        });
-
-        const compacted = { ...layout };
-
-        sortedKeys.forEach((key) => {
-          if (key === preserveId) return; // Never pull down or up the user's active target!
-
-          let targetRow = 1;
-          while (true) {
-            let collision = false;
-            for (const otherKey of Object.keys(compacted)) {
-              if (otherKey === key) continue;
-              const a = { ...compacted[key], row: targetRow };
-              const b = compacted[otherKey];
-
-              const overlapX = !(a.col + a.w <= b.col || a.col >= b.col + b.w);
-              const overlapY = !(a.row + a.h <= b.row || a.row >= b.row + b.h);
-
-              if (overlapX && overlapY) {
-                collision = true;
-                break;
-              }
-            }
-
-            if (!collision) {
-              compacted[key] = { ...compacted[key], row: targetRow };
-              break;
-            }
-            targetRow++;
-            if (targetRow > 16) break;
-          }
-        });
-
-        return compacted;
-      };
-
-      // Robust iterative collision resolution that prevents hopping or teleporting
+      // Non-jittering collision resolution that avoids teleporting or bouncing
       const resolveCollisions = (targetId, nextLayout) => {
         const result = { ...nextLayout };
         const target = result[targetId];
+        if (!target) return result;
 
         target.col = Math.max(1, Math.min(8 - target.w + 1, target.col));
-        target.row = Math.max(1, Math.min(14, target.row));
+        target.row = Math.max(1, Math.min(24, target.row));
 
+        // Push overlapping items down monotonically (cascade)
         let changed = true;
         let passes = 0;
-        while (changed && passes < 12) {
+        while (changed && passes < 10) {
           changed = false;
           passes++;
 
-          for (const idA of Object.keys(result)) {
-            for (const idB of Object.keys(result)) {
-              if (idA === idB) continue;
-              const a = result[idA];
-              const b = result[idB];
+          for (const key of Object.keys(result)) {
+            if (key === targetId) continue;
+            const other = result[key];
+
+            const overlapX = !(target.col + target.w <= other.col || target.col >= other.col + other.w);
+            const overlapY = !(target.row + target.h <= other.row || target.row >= other.row + other.h);
+
+            if (overlapX && overlapY) {
+              const newOtherRow = target.row + target.h;
+              if (other.row < newOtherRow) {
+                result[key] = { ...other, row: newOtherRow };
+                changed = true;
+              }
+            }
+          }
+
+          // Resolve overlaps among remaining items (cascade downwards)
+          const otherKeys = Object.keys(result).filter((k) => k !== targetId);
+          for (let i = 0; i < otherKeys.length; i++) {
+            for (let j = 0; j < otherKeys.length; j++) {
+              if (i === j) continue;
+              const keyA = otherKeys[i];
+              const keyB = otherKeys[j];
+              const a = result[keyA];
+              const b = result[keyB];
 
               const overlapX = !(a.col + a.w <= b.col || a.col >= b.col + b.w);
               const overlapY = !(a.row + a.h <= b.row || a.row >= b.row + b.h);
 
               if (overlapX && overlapY) {
-                if (idA === targetId) {
-                  result[idB] = { ...b, row: a.row + a.h };
-                  changed = true;
-                } else if (idB === targetId) {
-                  result[idA] = { ...a, row: b.row + b.h };
-                  changed = true;
-                } else if (a.row <= b.row) {
-                  result[idB] = { ...b, row: a.row + a.h };
+                if (a.row <= b.row) {
+                  result[keyB] = { ...b, row: a.row + a.h };
                   changed = true;
                 } else {
-                  result[idA] = { ...a, row: b.row + b.h };
+                  result[keyA] = { ...a, row: b.row + b.h };
                   changed = true;
                 }
               }
@@ -567,7 +642,7 @@
           }
         }
 
-        return compactLayout(result, targetId);
+        return result;
       };
 
       // Accurate pixel-to-coordinate mapping accounting for grid gap & scale
@@ -575,9 +650,9 @@
         if (!gridContainerRef.current) return { col: 1, row: 1 };
         const rect = gridContainerRef.current.getBoundingClientRect();
         
-        const isSm = window.innerWidth >= 640;
-        const colGap = isSm ? 16 : 12;
-        const rowGap = isSm ? 16 : 12;
+        const colGap = 16;
+        const rowGap = 16;
+        const baseRowHeight = 44;
 
         const availableWidth = Math.max(100, rect.width - 7 * colGap);
         const colWidth = availableWidth / 8;
@@ -586,25 +661,33 @@
         const relX = clientX - rect.left;
         const rawCol = Math.floor(relX / colStep) + 1;
 
-        const rowStep = 85 + rowGap;
+        const rowStep = baseRowHeight + rowGap;
         const relY = clientY - rect.top;
         const rawRow = Math.floor(relY / rowStep) + 1;
 
         const col = Math.max(1, Math.min(8, rawCol));
-        const row = Math.max(1, Math.min(14, rawRow));
+        const row = Math.max(1, Math.min(24, rawRow));
         return { col, row };
       };
 
       const handleStartDrag = (id, e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
+        try {
+          if (e.target && e.target.setPointerCapture && e.pointerId !== undefined) {
+            e.target.setPointerCapture(e.pointerId);
+          }
+        } catch (err) {}
+
         const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
         const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-        const current = gridLayoutRef.current[id] || { col: 1, row: 1, w: 4, h: 4 };
+        const current = gridLayoutRef.current[id] || { col: 1, row: 1, w: 4, h: 6 };
         const coord = getGridCoordFromPointer(clientX, clientY);
 
         dragStartOffset.current = {
+          pointerId: e.pointerId,
+          targetEl: e.target,
           mouseX: clientX,
           mouseY: clientY,
           grabColOffset: coord.col - current.col,
@@ -627,11 +710,19 @@
         e.preventDefault();
         e.stopPropagation();
 
+        try {
+          if (e.target && e.target.setPointerCapture && e.pointerId !== undefined) {
+            e.target.setPointerCapture(e.pointerId);
+          }
+        } catch (err) {}
+
         const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
         const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-        const current = gridLayoutRef.current[id] || { col: 1, row: 1, w: 4, h: 4 };
+        const current = gridLayoutRef.current[id] || { col: 1, row: 1, w: 4, h: 6 };
 
         dragStartOffset.current = {
+          pointerId: e.pointerId,
+          targetEl: e.target,
           mouseX: clientX,
           mouseY: clientY,
           direction,
@@ -679,7 +770,7 @@
             const targetRow = coords.row - (dragStartOffset.current.grabRowOffset || 0);
 
             const clampedCol = Math.max(1, Math.min(8 - item.w + 1, targetCol));
-            const clampedRow = Math.max(1, Math.min(14, targetRow));
+            const clampedRow = Math.max(1, Math.min(24, targetRow));
 
             if (clampedCol !== item.col || clampedRow !== item.row) {
               const updated = {
@@ -693,7 +784,7 @@
             const item = currentLayout[id];
             if (!item) return;
 
-            const limits = MIN_CONSTRAINTS[id] || { minW: 2, minH: 1 };
+            const limits = MIN_CONSTRAINTS[id] || { minW: 1, minH: 1 };
             const { origCol, origRow, origW, origH } = dragStartOffset.current;
             const origRight = origCol + origW - 1;
             const origBottom = origRow + origH - 1;
@@ -712,7 +803,7 @@
             }
 
             if (direction.includes('s')) {
-              newH = Math.max(limits.minH, Math.min(10, coords.row - origRow + 1));
+              newH = Math.max(limits.minH, Math.min(16, coords.row - origRow + 1));
             } else if (direction.includes('n')) {
               const candidateRow = Math.max(1, Math.min(origBottom - limits.minH + 1, coords.row));
               newRow = candidateRow;
@@ -735,11 +826,16 @@
           const activeTarget = finishedDrag || finishedResize;
 
           if (activeTarget) {
-            // Keep the user's active widget locked at its placed position!
-            const finalClean = compactLayout(gridLayoutRef.current, activeTarget);
+            const finalClean = resolveCollisions(activeTarget, gridLayoutRef.current);
             saveLayout(finalClean);
             triggerHaptic("medium");
           }
+
+          try {
+            if (dragStartOffset.current.targetEl && dragStartOffset.current.pointerId !== undefined) {
+              dragStartOffset.current.targetEl.releasePointerCapture(dragStartOffset.current.pointerId);
+            }
+          } catch (err) {}
 
           dragStartOffset.current.isDraggingActive = false;
           activeDragIdRef.current = null;
@@ -762,6 +858,10 @@
 
       const resetLayout = () => {
         saveLayout(DEFAULT_GRID_LAYOUT);
+        setMinimized({});
+        try {
+          localStorage.removeItem("tminus_minimized_widgets");
+        } catch(e) {}
         showNotification("Layout reset to default positions");
         triggerHaptic("light");
       };
@@ -954,21 +1054,21 @@
         triggerHaptic("medium");
       };
 
-      // Responsive rendering supporting ultra-compact sizes and elegant text wrapping
+      // Responsive rendering supporting ultra-compact sizes, one-touch minimize, and elegant text wrapping
       const renderWidgetContent = (type) => {
-        const currentLayout = gridLayout[type] || { w: 4, h: 4 };
-        const isUltraSlim = currentLayout.h <= 1;
+        const currentLayout = gridLayout[type] || { w: 4, h: 6 };
+        const isWidgetMinimized = !!minimized[type] || currentLayout.h <= 1;
         const isNarrow = currentLayout.w <= 2;
         const isCompact = currentLayout.w <= 3 || currentLayout.h <= 3;
 
         if (type === "countdown") {
-          // Ultra-slim single row view (h: 1)
-          if (isUltraSlim) {
+          // Ultra-slim single row view (h: 1 or minimized)
+          if (isWidgetMinimized) {
             return (
-              <div className={`w-full h-full rounded-2xl p-3 flex items-center justify-between gap-3 overflow-hidden ${
+              <div className={`w-full h-full min-h-[44px] rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 overflow-hidden transition-all ${
                 theme === 'dark' ? 'glass-dark' : 'neu-raised'
               }`}>
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div 
                     onPointerDown={(e) => handleStartDrag("countdown", e)}
                     className="drag-handle p-1 -ml-1 text-[#8EB69B]/70 hover:text-[#DAF1DE] transition-colors cursor-grab active:cursor-grabbing select-none flex-shrink-0" 
@@ -977,13 +1077,24 @@
                     <Icon name="grip" className="w-3.5 h-3.5 pointer-events-none" />
                   </div>
                   <span className={`w-2 h-2 rounded-full ${isCompletedSprint ? 'bg-[#FF3B30]' : 'bg-[#8EB69B]'} animate-pulse flex-shrink-0`} />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="text-[10px] font-mono font-bold uppercase text-[#8EB69B] truncate">{targetTitle}</div>
                     <div className="text-[8px] font-mono text-[#8EB69B]/70 truncate">{formattedTargetDisplay}</div>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0 font-mono font-bold text-xs sm:text-sm text-[#DAF1DE] tabular-nums">
-                  {isCompletedSprint ? "COMPLETED" : `${days}d ${String(hours).padStart(2,'0')}h ${String(minutes).padStart(2,'0')}m ${String(seconds).padStart(2,'0')}s`}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="font-mono font-bold text-xs sm:text-sm text-[#DAF1DE] tabular-nums whitespace-nowrap">
+                    {isCompletedSprint ? "COMPLETED" : `${days}d ${String(hours).padStart(2,'0')}h ${String(minutes).padStart(2,'0')}m ${String(seconds).padStart(2,'0')}s`}
+                  </div>
+                  <button
+                    onClick={(e) => toggleMinimize("countdown", e)}
+                    className={`p-1.5 rounded-lg text-[#8EB69B] hover:text-[#DAF1DE] transition-colors ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-[#DAF1DE]'
+                    }`}
+                    title="Expand Countdown"
+                  >
+                    <Icon name="maximize" className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );
@@ -1005,7 +1116,16 @@
                     </div>
                     <span className="text-[10px] font-mono font-bold text-[#8EB69B] truncate">T-MINUS</span>
                   </div>
-                  <span className="text-[8px] font-mono text-[#DAF1DE]">{currentLayout.w}x{currentLayout.h}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => toggleMinimize("countdown", e)}
+                      className={`p-1 rounded text-[#8EB69B] hover:text-[#DAF1DE] ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-[#DAF1DE]'}`}
+                      title="Minimize"
+                    >
+                      <Icon name="minimize" className="w-3 h-3" />
+                    </button>
+                    <span className="text-[8px] font-mono text-[#DAF1DE]">{currentLayout.w}x{currentLayout.h}</span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 my-1">
                   <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-black/20 text-center">
@@ -1064,7 +1184,16 @@
                   >
                     <Icon name="edit" className="w-3 h-3" />
                   </button>
-                  <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#235347]/50 text-[#DAF1DE] border border-[#8EB69B]/30">
+                  <button
+                    onClick={(e) => toggleMinimize("countdown", e)}
+                    className={`p-1 rounded-md text-[9px] font-mono transition-all ${
+                      theme === 'dark' ? 'hover:bg-white/10 text-[#8EB69B]' : 'hover:bg-[#DAF1DE] text-[#235347]'
+                    }`}
+                    title="Minimize to single row"
+                  >
+                    <Icon name="minimize" className="w-3 h-3" />
+                  </button>
+                  <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#235347]/50 text-[#DAF1DE] border border-[#8EB69B]/30 whitespace-nowrap">
                     C:{currentLayout.col} R:{currentLayout.row} [{currentLayout.w}x{currentLayout.h}]
                   </span>
                 </div>
@@ -1162,29 +1291,39 @@
         }
 
         if (type === "progress") {
-          // Ultra-slim single row view (h: 1)
-          if (isUltraSlim) {
+          // Ultra-slim single row view (h: 1 or minimized)
+          if (isWidgetMinimized) {
             return (
-              <div className={`w-full h-full p-3 rounded-2xl flex items-center justify-between gap-3 overflow-hidden ${
+              <div className={`w-full h-full min-h-[44px] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between gap-3 overflow-hidden transition-all ${
                 theme === 'dark' ? 'glass-dark' : 'neu-raised'
               }`}>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <div 
                     onPointerDown={(e) => handleStartDrag("progress", e)} 
                     className="drag-handle p-1 -ml-1 text-[#8EB69B]/70 hover:text-[#DAF1DE] cursor-grab active:cursor-grabbing select-none"
+                    title="Drag widget"
                   >
                     <Icon name="grip" className="w-3.5 h-3.5 pointer-events-none" />
                   </div>
                   <span className="font-semibold text-[#8EB69B] uppercase font-mono text-[10px] sm:text-xs">ROADMAP</span>
                 </div>
-                <div className="flex-1 mx-2">
+                <div className="flex-1 mx-2 min-w-[60px]">
                   <div className={`w-full h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-[#0B2B26]' : 'neu-sunken'}`}>
                     <div className="h-full bg-gradient-to-r from-[#163832] via-[#235347] to-[#8EB69B] transition-all duration-500 rounded-full" style={{ width: `${progressPercent}%` }} />
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 font-mono text-xs text-[#8EB69B]">
                   <span className="font-bold">{progressPercent}%</span>
-                  <span className="text-[10px] opacity-75">({completedCount}/{milestones.length})</span>
+                  <span className="text-[10px] opacity-75 hidden xs:inline">({completedCount}/{milestones.length})</span>
+                  <button
+                    onClick={(e) => toggleMinimize("progress", e)}
+                    className={`p-1.5 rounded-lg text-[#8EB69B] hover:text-[#DAF1DE] transition-colors ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-[#DAF1DE]'
+                    }`}
+                    title="Expand Roadmap Completion"
+                  >
+                    <Icon name="maximize" className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );
@@ -1210,7 +1349,16 @@
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#235347]/50 text-[#DAF1DE] border border-[#8EB69B]/30">
+                    <button
+                      onClick={(e) => toggleMinimize("progress", e)}
+                      className={`p-1 rounded-md text-[9px] font-mono transition-all ${
+                        theme === 'dark' ? 'hover:bg-white/10 text-[#8EB69B]' : 'hover:bg-[#DAF1DE] text-[#235347]'
+                      }`}
+                      title="Minimize to single row"
+                    >
+                      <Icon name="minimize" className="w-3 h-3" />
+                    </button>
+                    <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#235347]/50 text-[#DAF1DE] border border-[#8EB69B]/30 whitespace-nowrap">
                       C:{currentLayout.col} R:{currentLayout.row} [{currentLayout.w}x{currentLayout.h}]
                     </span>
                     <span className="font-mono font-bold text-[#8EB69B] text-xs sm:text-sm">{progressPercent}%</span>
@@ -1231,31 +1379,41 @@
         }
 
         if (type === "milestones") {
-          // Ultra-slim single row view (h: 1)
-          if (isUltraSlim) {
+          // Ultra-slim single row view (h: 1 or minimized)
+          if (isWidgetMinimized) {
             return (
-              <div className={`w-full h-full rounded-2xl p-3 flex items-center justify-between gap-3 overflow-hidden ${
+              <div className={`w-full h-full min-h-[44px] rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 overflow-hidden transition-all ${
                 theme === 'dark' ? 'glass-dark' : 'neu-raised'
               }`}>
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div 
                     onPointerDown={(e) => handleStartDrag("milestones", e)} 
                     className="drag-handle p-1 -ml-1 text-[#8EB69B]/70 hover:text-[#DAF1DE] cursor-grab active:cursor-grabbing select-none flex-shrink-0"
+                    title="Drag widget"
                   >
                     <Icon name="grip" className="w-3.5 h-3.5 pointer-events-none" />
                   </div>
                   <Icon name="check-square" className="w-4 h-4 text-[#8EB69B] flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-bold text-[#DAF1DE] uppercase font-mono truncate">MILESTONES</div>
-                    <div className="text-[8px] font-mono text-[#8EB69B] truncate">{completedCount} of {milestones.length} completed</div>
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-[#DAF1DE] uppercase font-mono whitespace-nowrap">ROADMAP</span>
+                    <span className="text-[9px] font-mono text-[#8EB69B] hidden xs:inline truncate">({completedCount} of {milestones.length} completed • {progressPercent}%)</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button onClick={() => setShowSprintModal(true)} className="p-1 rounded-md text-[#8EB69B] hover:text-[#DAF1DE]" title="Manage">
+                  <button onClick={() => setShowSprintModal(true)} className="p-1 rounded-md text-[#8EB69B] hover:text-[#DAF1DE]" title="Manage Milestones">
                     <Icon name="plus" className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={downloadAllIcs} className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-[#235347] text-[#DAF1DE]" title="Export">
+                  <button onClick={downloadAllIcs} className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-[#235347] text-[#DAF1DE]" title="Export .ICS">
                     .ICS
+                  </button>
+                  <button
+                    onClick={(e) => toggleMinimize("milestones", e)}
+                    className={`p-1.5 rounded-lg text-[#8EB69B] hover:text-[#DAF1DE] transition-colors ${
+                      theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-[#DAF1DE]'
+                    }`}
+                    title="Expand Milestones"
+                  >
+                    <Icon name="maximize" className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1295,6 +1453,15 @@
                       title="Manage Milestones"
                     >
                       <Icon name="plus" className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => toggleMinimize("milestones", e)}
+                      className={`p-1.5 rounded-xl text-xs font-mono transition-all ${
+                        theme === 'dark' ? 'glass-card hover:bg-white/10 text-[#8EB69B]' : 'neu-btn text-[#235347]'
+                      }`}
+                      title="Minimize to single row"
+                    >
+                      <Icon name="minimize" className="w-3.5 h-3.5" />
                     </button>
                     <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#235347]/50 text-[#DAF1DE] border border-[#8EB69B]/30 whitespace-nowrap">
                       C:{currentLayout.col} R:{currentLayout.row} [{currentLayout.w}x{currentLayout.h}]
@@ -1336,7 +1503,7 @@
                       <div
                         key={m.id}
                         onClick={() => toggleCheck(m.id)}
-                        className={`group relative flex items-start justify-between p-2.5 sm:p-3 rounded-xl sm:rounded-2xl cursor-pointer border transition-all duration-200 min-h-[58px] gap-2.5 flex-shrink-0 ${
+                        className={`group relative flex items-start justify-between p-3 sm:p-3.5 rounded-xl sm:rounded-2xl cursor-pointer border transition-all duration-200 min-h-[60px] gap-2.5 sm:gap-3 flex-shrink-0 ${
                           isDone
                             ? theme === 'dark'
                               ? 'bg-[#0B2B26]/40 border-[#8EB69B]/10 opacity-50'
@@ -1346,8 +1513,8 @@
                             : 'neu-card hover:scale-[1.005]'
                         }`}
                       >
-                        {/* Left: Checkbox + Content (Wraps cleanly without cutoffs) */}
-                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                        {/* Left: Checkbox + Content (Wraps cleanly without cutoffs or ellipses) */}
+                        <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
                           <button 
                             type="button" 
                             className="mt-0.5 text-[#8EB69B] focus:outline-none transition-transform active:scale-90 flex-shrink-0"
@@ -1366,7 +1533,7 @@
 
                           <div className="min-w-0 flex-1">
                             {/* Full Title with clean word-wrapping */}
-                            <div className={`text-[11px] sm:text-xs font-semibold break-words leading-snug transition-all ${
+                            <div className={`text-xs sm:text-sm font-semibold break-words leading-snug transition-all ${
                               isDone ? 'line-through text-[#8EB69B]/60' : (theme === 'dark' ? 'text-[#DAF1DE]' : 'text-[#0B2B26]')
                             }`}>
                               {m.title}
@@ -1374,22 +1541,22 @@
 
                             {/* Full Description with clean word-wrapping */}
                             {!isCompact && m.desc && (
-                              <div className="text-[9px] sm:text-[10px] text-[#8EB69B] font-sans mt-0.5 break-words leading-snug opacity-90">
+                              <div className="text-[10px] sm:text-[11px] text-[#8EB69B] font-sans mt-0.5 break-words leading-relaxed opacity-90">
                                 {m.desc}
                               </div>
                             )}
 
-                            {/* Date Badge */}
-                            <div className="text-[8px] sm:text-[9px] font-mono text-[#8EB69B]/75 mt-1 flex items-center gap-1">
-                              <Icon name="calendar" className="w-2.5 h-2.5 flex-shrink-0" />
-                              <span>{m.dateStr}</span>
+                            {/* Date Badge: clean single line with whitespace-nowrap */}
+                            <div className="text-[9px] sm:text-[10px] font-mono text-[#8EB69B]/80 mt-1 flex items-center gap-1.5 whitespace-nowrap">
+                              <Icon name="calendar" className="w-3 h-3 flex-shrink-0" />
+                              <span className="whitespace-nowrap">{m.dateStr}</span>
                             </div>
                           </div>
                         </div>
 
-                        {/* Right: Tag Badge & +GCal Button - Symmetrically anchored to the top line */}
-                        <div className="flex flex-col items-end justify-start gap-1.5 flex-shrink-0 pt-0.5">
-                          <span className={`text-[8px] sm:text-[9px] font-mono font-bold px-2 py-0.5 rounded-md text-center min-w-[36px] ${
+                        {/* Right: Tag Badge & +GCal Button - Symmetrically anchored to top-right */}
+                        <div className="flex flex-col items-end justify-start gap-1 flex-shrink-0 pt-0.5">
+                          <span className={`text-[9px] sm:text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md text-center min-w-[38px] whitespace-nowrap ${
                             isDone
                               ? 'bg-[#8EB69B]/20 text-[#8EB69B] border border-[#8EB69B]/30'
                               : theme === 'dark'
@@ -1405,7 +1572,7 @@
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity text-[8px] sm:text-[9px] font-mono text-[#8EB69B] hover:text-[#DAF1DE] hover:underline flex items-center gap-0.5 mt-0.5"
+                              className="opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity text-[9px] sm:text-[10px] font-mono text-[#8EB69B] hover:text-[#DAF1DE] hover:underline flex items-center gap-0.5 mt-0.5 whitespace-nowrap"
                               title="Add event to Google Calendar"
                             >
                               <span>+GCal</span>
@@ -1556,26 +1723,27 @@
             </div>
           )}
 
-          {/* 8-Column Responsive Matrix Canvas */}
+          {/* Responsive Matrix Canvas: Full-Width Stack on Mobile (< 640px), 8-Column Grid on sm+ */}
           <main 
             ref={gridContainerRef}
-            className="w-full max-w-6xl grid grid-cols-8 auto-rows-[minmax(85px,auto)] gap-3 sm:gap-4 relative z-20 min-h-[500px]"
+            className="w-full max-w-6xl dashboard-grid relative z-20 min-h-[500px]"
           >
             {Object.keys(gridLayout).map((widgetId) => {
               const item = gridLayout[widgetId];
               const isDragging = activeDragId === widgetId;
               const isResizingThis = resizingId && resizingId.id === widgetId;
+              const isWidgetMin = !!minimized[widgetId] || item.h <= 1;
 
               const gridStyle = {
                 gridColumn: `${Math.max(1, Math.min(8, item.col))} / span ${Math.max(1, Math.min(8, item.w))}`,
-                gridRow: `${Math.max(1, item.row)} / span ${Math.max(1, item.h)}`
+                gridRow: `${Math.max(1, item.row)} / span ${isWidgetMin ? 1 : Math.max(1, item.h)}`
               };
 
               return (
                 <div
                   key={widgetId}
-                  style={gridStyle}
-                  className={`group relative transition-shadow duration-200 flex flex-col ${
+                  style={{ ...gridStyle, '--widget-order': (item.row * 10) + item.col }}
+                  className={`dashboard-widget group relative transition-shadow duration-200 flex flex-col ${
                     isEditMode ? 'widget-jiggle' : ''
                   } ${isDragging ? 'widget-dragging ring-2 ring-[#8EB69B]' : ''} ${
                     isResizingThis ? 'ring-2 ring-emerald-400 opacity-95' : ''
