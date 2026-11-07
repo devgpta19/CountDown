@@ -522,21 +522,6 @@
         }
       });
 
-      const toggleMinimize = (id, e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        setMinimized((prev) => {
-          const next = { ...prev, [id]: !prev[id] };
-          try {
-            localStorage.setItem("tminus_minimized_widgets", JSON.stringify(next));
-          } catch(err) {}
-          return next;
-        });
-        triggerHaptic("light");
-      };
-
       const [activeDragId, setActiveDragId] = useState(null);
       const [resizingId, setResizingId] = useState(null);
       const [hoverCoord, setHoverCoord] = useState(null);
@@ -552,6 +537,7 @@
         origRow: 1,
         origW: 4,
         origH: 6,
+        initialLayout: null,
         isDraggingActive: false
       });
 
@@ -584,65 +570,111 @@
         } catch(e) {}
       };
 
-      // Non-jittering collision resolution that avoids teleporting or bouncing
-      const resolveCollisions = (targetId, nextLayout) => {
-        const result = { ...nextLayout };
-        const target = result[targetId];
-        if (!target) return result;
+      // Deterministic 2D bidirectional gravity packing engine:
+      // - Locks activeId at user-requested coordinates/dimensions
+      // - Sorts remaining widgets in their established visual order
+      // - Packs each remaining widget into the earliest available row (>= 1) without collision
+      // - Expanding smoothly pushes lower widgets down; compacting smoothly pulls lower widgets UP!
+      const packLayout = (layout, activeId = null) => {
+        const result = {};
 
-        target.col = Math.max(1, Math.min(8 - target.w + 1, target.col));
-        target.row = Math.max(1, Math.min(24, target.row));
+        // If an active widget is being manipulated, lock its requested bounds
+        if (activeId && layout[activeId]) {
+          const active = layout[activeId];
+          const clampedW = Math.max(1, Math.min(8, active.w));
+          const clampedCol = Math.max(1, Math.min(8 - clampedW + 1, active.col));
+          const clampedRow = Math.max(1, active.row);
+          const clampedH = Math.max(1, active.h);
+          result[activeId] = {
+            ...active,
+            col: clampedCol,
+            row: clampedRow,
+            w: clampedW,
+            h: clampedH
+          };
+        }
 
-        // Push overlapping items down monotonically (cascade)
-        let changed = true;
-        let passes = 0;
-        while (changed && passes < 10) {
-          changed = false;
-          passes++;
+        // Helper: 2D bounding-box collision detection
+        const collides = (a, b) => {
+          return !(
+            a.col + a.w <= b.col ||
+            a.col >= b.col + b.w ||
+            a.row + a.h <= b.row ||
+            a.row >= b.row + b.h
+          );
+        };
 
-          for (const key of Object.keys(result)) {
-            if (key === targetId) continue;
-            const other = result[key];
+        // Sort all other widgets by vertical visual order (row, then col)
+        const otherKeys = Object.keys(layout)
+          .filter((k) => k !== activeId)
+          .sort((k1, k2) => {
+            if (layout[k1].row !== layout[k2].row) {
+              return layout[k1].row - layout[k2].row;
+            }
+            return layout[k1].col - layout[k2].col;
+          });
 
-            const overlapX = !(target.col + target.w <= other.col || target.col >= other.col + other.w);
-            const overlapY = !(target.row + target.h <= other.row || target.row >= other.row + other.h);
+        // Pack each remaining widget upwards with gravity into the earliest free row >= 1
+        for (const key of otherKeys) {
+          const item = { ...layout[key] };
+          const clampedW = Math.max(1, Math.min(8, item.w));
+          item.w = clampedW;
+          item.col = Math.max(1, Math.min(8 - clampedW + 1, item.col));
+          item.h = Math.max(1, item.h);
 
-            if (overlapX && overlapY) {
-              const newOtherRow = target.row + target.h;
-              if (other.row < newOtherRow) {
-                result[key] = { ...other, row: newOtherRow };
-                changed = true;
+          let row = 1;
+          while (true) {
+            item.row = row;
+            let hasCollision = false;
+
+            for (const placedKey of Object.keys(result)) {
+              if (collides(item, result[placedKey])) {
+                hasCollision = true;
+                break;
               }
             }
-          }
 
-          // Resolve overlaps among remaining items (cascade downwards)
-          const otherKeys = Object.keys(result).filter((k) => k !== targetId);
-          for (let i = 0; i < otherKeys.length; i++) {
-            for (let j = 0; j < otherKeys.length; j++) {
-              if (i === j) continue;
-              const keyA = otherKeys[i];
-              const keyB = otherKeys[j];
-              const a = result[keyA];
-              const b = result[keyB];
+            if (!hasCollision) {
+              result[key] = { ...item };
+              break;
+            }
 
-              const overlapX = !(a.col + a.w <= b.col || a.col >= b.col + b.w);
-              const overlapY = !(a.row + a.h <= b.row || a.row >= b.row + b.h);
-
-              if (overlapX && overlapY) {
-                if (a.row <= b.row) {
-                  result[keyB] = { ...b, row: a.row + a.h };
-                  changed = true;
-                } else {
-                  result[keyA] = { ...a, row: b.row + b.h };
-                  changed = true;
-                }
-              }
+            row++;
+            if (row > 30) {
+              result[key] = { ...item, row };
+              break;
             }
           }
         }
 
         return result;
+      };
+
+      const toggleMinimize = (id, e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        const nextMin = !minimized[id];
+        const newMinimized = { ...minimized, [id]: nextMin };
+        setMinimized(newMinimized);
+        try {
+          localStorage.setItem("tminus_minimized_widgets", JSON.stringify(newMinimized));
+        } catch(err) {}
+
+        // Adjust widget's height in grid layout and run packLayout with gravity!
+        const defaultHeights = { countdown: 6, milestones: 6, progress: 3 };
+        const current = gridLayoutRef.current[id] || { col: 1, row: 1, w: 4, h: 6 };
+        const targetH = nextMin ? 1 : (current.h > 1 ? current.h : (defaultHeights[id] || 4));
+
+        const updated = {
+          ...gridLayoutRef.current,
+          [id]: { ...current, h: targetH }
+        };
+
+        const packed = packLayout(updated, id);
+        saveLayout(packed);
+        triggerHaptic("light");
       };
 
       // Accurate pixel-to-coordinate mapping accounting for grid gap & scale
@@ -696,6 +728,7 @@
           origRow: current.row,
           origW: current.w,
           origH: current.h,
+          initialLayout: JSON.parse(JSON.stringify(gridLayoutRef.current)),
           isDraggingActive: false
         };
 
@@ -730,6 +763,7 @@
           origRow: current.row,
           origW: current.w,
           origH: current.h,
+          initialLayout: JSON.parse(JSON.stringify(gridLayoutRef.current)),
           isDraggingActive: true
         };
 
@@ -752,71 +786,92 @@
 
           const deltaX = Math.abs(clientX - dragStartOffset.current.mouseX);
           const deltaY = Math.abs(clientY - dragStartOffset.current.mouseY);
-          if (deltaX < 4 && deltaY < 4 && !dragStartOffset.current.isDraggingActive) {
+          if (deltaX < 3 && deltaY < 3 && !dragStartOffset.current.isDraggingActive) {
             return;
           }
           dragStartOffset.current.isDraggingActive = true;
 
-          const coords = getGridCoordFromPointer(clientX, clientY);
-          setHoverCoord(coords);
+          const gridRect = gridContainerRef.current ? gridContainerRef.current.getBoundingClientRect() : null;
+          const colGap = 16;
+          const rowGap = 16;
+          const baseRowHeight = 44;
+          const availableWidth = gridRect ? Math.max(100, gridRect.width - 7 * colGap) : 800;
+          const colStep = (availableWidth / 8) + colGap;
+          const rowStep = baseRowHeight + rowGap; // 60px
 
-          const currentLayout = gridLayoutRef.current;
+          const deltaPixelX = clientX - dragStartOffset.current.mouseX;
+          const deltaPixelY = clientY - dragStartOffset.current.mouseY;
+
+          const deltaCols = Math.round(deltaPixelX / colStep);
+          const deltaRows = Math.round(deltaPixelY / rowStep);
+
+          const initial = dragStartOffset.current.initialLayout || gridLayoutRef.current;
 
           if (currentDrag) {
-            const item = currentLayout[currentDrag];
+            const item = initial[currentDrag];
             if (!item) return;
 
-            const targetCol = coords.col - (dragStartOffset.current.grabColOffset || 0);
-            const targetRow = coords.row - (dragStartOffset.current.grabRowOffset || 0);
+            const { origCol, origRow, origW, origH } = dragStartOffset.current;
+            const clampedW = Math.max(1, Math.min(8, origW));
+            const clampedH = Math.max(1, origH);
 
-            const clampedCol = Math.max(1, Math.min(8 - item.w + 1, targetCol));
+            const targetCol = origCol + deltaCols;
+            const targetRow = origRow + deltaRows;
+
+            const clampedCol = Math.max(1, Math.min(8 - clampedW + 1, targetCol));
             const clampedRow = Math.max(1, Math.min(24, targetRow));
 
-            if (clampedCol !== item.col || clampedRow !== item.row) {
-              const updated = {
-                ...currentLayout,
-                [currentDrag]: { ...item, col: clampedCol, row: clampedRow, h: dragStartOffset.current.origH }
-              };
-              saveLayout(resolveCollisions(currentDrag, updated));
-            }
+            setHoverCoord({ col: clampedCol, row: clampedRow });
+
+            const updated = {
+              ...initial,
+              [currentDrag]: { ...item, col: clampedCol, row: clampedRow, w: clampedW, h: clampedH }
+            };
+            const packed = packLayout(updated, currentDrag);
+            saveLayout(packed);
           } else if (currentResize) {
             const { id, direction } = currentResize;
-            const item = currentLayout[id];
+            const item = initial[id];
             if (!item) return;
 
             const limits = MIN_CONSTRAINTS[id] || { minW: 1, minH: 1 };
             const { origCol, origRow, origW, origH } = dragStartOffset.current;
-            const origRight = origCol + origW - 1;
-            const origBottom = origRow + origH - 1;
 
             let newCol = origCol;
             let newRow = origRow;
             let newW = origW;
             let newH = origH;
 
+            // East / West (Horizontal resizing)
             if (direction.includes('e')) {
-              newW = Math.max(limits.minW, Math.min(8 - origCol + 1, coords.col - origCol + 1));
+              newW = Math.max(limits.minW, Math.min(8 - origCol + 1, origW + deltaCols));
             } else if (direction.includes('w')) {
-              const candidateCol = Math.max(1, Math.min(origRight - limits.minW + 1, coords.col));
-              newCol = candidateCol;
-              newW = origRight - candidateCol + 1;
+              const maxShrink = origW - limits.minW;
+              const maxExpandLeft = origCol - 1;
+              const clampedDelta = Math.min(maxShrink, Math.max(-maxExpandLeft, deltaCols));
+              newCol = origCol + clampedDelta;
+              newW = origW - clampedDelta;
             }
 
+            // South / North (Vertical resizing)
             if (direction.includes('s')) {
-              newH = Math.max(limits.minH, Math.min(16, coords.row - origRow + 1));
+              newH = Math.max(limits.minH, Math.min(16, origH + deltaRows));
             } else if (direction.includes('n')) {
-              const candidateRow = Math.max(1, Math.min(origBottom - limits.minH + 1, coords.row));
-              newRow = candidateRow;
-              newH = origBottom - candidateRow + 1;
+              const maxShrink = origH - limits.minH;
+              const maxExpandUp = origRow - 1;
+              const clampedDelta = Math.min(maxShrink, Math.max(-maxExpandUp, deltaRows));
+              newRow = origRow + clampedDelta;
+              newH = origH - clampedDelta;
             }
 
-            if (newCol !== item.col || newRow !== item.row || newW !== item.w || newH !== item.h) {
-              const updated = {
-                ...currentLayout,
-                [id]: { ...item, col: newCol, row: newRow, w: newW, h: newH }
-              };
-              saveLayout(resolveCollisions(id, updated));
-            }
+            setHoverCoord({ col: newCol, row: newRow });
+
+            const updated = {
+              ...initial,
+              [id]: { ...item, col: newCol, row: newRow, w: newW, h: newH }
+            };
+            const packed = packLayout(updated, id);
+            saveLayout(packed);
           }
         };
 
@@ -826,7 +881,7 @@
           const activeTarget = finishedDrag || finishedResize;
 
           if (activeTarget) {
-            const finalClean = resolveCollisions(activeTarget, gridLayoutRef.current);
+            const finalClean = packLayout(gridLayoutRef.current, activeTarget);
             saveLayout(finalClean);
             triggerHaptic("medium");
           }
@@ -838,6 +893,7 @@
           } catch (err) {}
 
           dragStartOffset.current.isDraggingActive = false;
+          dragStartOffset.current.initialLayout = null;
           activeDragIdRef.current = null;
           resizingIdRef.current = null;
           setActiveDragId(null);
@@ -861,6 +917,7 @@
         setMinimized({});
         try {
           localStorage.removeItem("tminus_minimized_widgets");
+          localStorage.removeItem("custom_coord_grid_layout");
         } catch(e) {}
         showNotification("Layout reset to default positions");
         triggerHaptic("light");
@@ -871,18 +928,19 @@
         e.stopPropagation();
         const current = gridLayout[id];
         let nextW = 4;
-        let nextH = 4;
-        if (current.w <= 2) { nextW = 4; nextH = 3; }
-        else if (current.w <= 4 && current.h <= 3) { nextW = 8; nextH = 3; }
-        else if (current.w >= 8) { nextW = 2; nextH = 2; }
-        else { nextW = 4; nextH = 3; }
+        let nextH = 6;
+        if (current.w <= 2) { nextW = 4; nextH = 6; }
+        else if (current.w <= 4 && current.h <= 4) { nextW = 8; nextH = 4; }
+        else if (current.w >= 8) { nextW = 4; nextH = 2; }
+        else { nextW = 4; nextH = 6; }
 
         const clampedCol = Math.min(8 - nextW + 1, current.col);
         const updated = {
           ...gridLayout,
           [id]: { ...current, col: clampedCol, w: nextW, h: nextH }
         };
-        saveLayout(resolveCollisions(id, updated));
+        const packed = packLayout(updated, id);
+        saveLayout(packed);
         triggerHaptic("light");
       };
 
@@ -1742,6 +1800,7 @@
               return (
                 <div
                   key={widgetId}
+                  data-widget={widgetId}
                   style={{ ...gridStyle, '--widget-order': (item.row * 10) + item.col }}
                   className={`dashboard-widget group relative transition-shadow duration-200 flex flex-col ${
                     isEditMode ? 'widget-jiggle' : ''

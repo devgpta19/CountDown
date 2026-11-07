@@ -210,7 +210,7 @@ async function runTests() {
     });
     await new Promise((r) => setTimeout(r, 300));
 
-    console.log('\n--- TEST SUITE 6: Drag & Resize Physics (Snap-Back Fix Verification) ---');
+    console.log('\n--- TEST SUITE 6: Drag & Resize Physics (Compacting & Bidirectional Gravity) ---');
     // Reset grid to default
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('header button'));
@@ -230,7 +230,7 @@ async function runTests() {
 
     // Test dragging countdown down to row 3 and verify it stays at row 3 (No Snap-back!)
     await page.evaluate(() => {
-      const grip = document.querySelector('.drag-handle');
+      const grip = document.querySelector('[data-widget="countdown"] .drag-handle') || document.querySelector('.drag-handle');
       if (!grip) return;
       const rect = grip.getBoundingClientRect();
       
@@ -267,6 +267,96 @@ async function runTests() {
       return layout.countdown ? layout.countdown.row : 1;
     });
     assert('Dragged Widget Stays at Placed Row (No Snap-Back to Row 1)', countdownRowAfterDrag > 1, `Row: ${countdownRowAfterDrag}`);
+
+    // Reset grid again for compaction testing
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('header button'));
+      const resetBtn = buttons.find((b) => b.innerText.includes('Reset Grid'));
+      if (resetBtn) resetBtn.click();
+    });
+    await new Promise((r) => setTimeout(r, 400));
+
+    // TEST BIDIRECTIONAL GRAVITY:
+    // When widgets are compacted/shrunk, lower widgets must float UP, not drift down or stay stuck!
+    // 1. Shrink countdown from h:6 to h:2 via south handle resize
+    await page.evaluate(() => {
+      const southHandle = document.querySelector('[data-widget="countdown"] .handle-s');
+      if (!southHandle) return;
+      const rect = southHandle.getBoundingClientRect();
+
+      southHandle.dispatchEvent(new PointerEvent('pointerdown', {
+        clientX: rect.x + rect.width / 2,
+        clientY: rect.y + rect.height / 2,
+        bubbles: true,
+        cancelable: true
+      }));
+
+      const moveY = rect.y - 240;
+      window.dispatchEvent(new PointerEvent('pointermove', {
+        clientX: rect.x + rect.width / 2,
+        clientY: moveY,
+        bubbles: true,
+        cancelable: true
+      }));
+
+      window.dispatchEvent(new PointerEvent('pointerup', {
+        clientX: rect.x + rect.width / 2,
+        clientY: moveY,
+        bubbles: true,
+        cancelable: true
+      }));
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const countdownCompactedHeight = await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('custom_coord_grid_layout') || '{}');
+      return saved.countdown ? saved.countdown.h : 6;
+    });
+    assert('Countdown Widget Compacts Upwards via Resize Handle', countdownCompactedHeight < 6, `Height: ${countdownCompactedHeight}`);
+
+    // 2. Shrink milestones from h:6 to h:2 as well
+    await page.evaluate(() => {
+      const southHandle = document.querySelector('[data-widget="milestones"] .handle-s');
+      if (!southHandle) return;
+      const rect = southHandle.getBoundingClientRect();
+
+      southHandle.dispatchEvent(new PointerEvent('pointerdown', {
+        clientX: rect.x + rect.width / 2,
+        clientY: rect.y + rect.height / 2,
+        bubbles: true,
+        cancelable: true
+      }));
+
+      window.dispatchEvent(new PointerEvent('pointermove', {
+        clientX: rect.x + rect.width / 2,
+        clientY: rect.y - 240,
+        bubbles: true,
+        cancelable: true
+      }));
+
+      window.dispatchEvent(new PointerEvent('pointerup', {
+        clientX: rect.x + rect.width / 2,
+        clientY: rect.y - 240,
+        bubbles: true,
+        cancelable: true
+      }));
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    // 3. Verify Progress widget floats UP from row 7 to row 3 or 4 (Bidirectional gravity!)
+    const progressRowAfterCompaction = await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('custom_coord_grid_layout') || '{}');
+      return saved.progress ? saved.progress.row : 7;
+    });
+    assert('Compaction Pulls Lower Widget Upwards with Bidirectional Gravity', progressRowAfterCompaction < 7, `Progress Row: ${progressRowAfterCompaction} (Expected < 7)`);
+
+    // Reset grid cleanly
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('header button'));
+      const resetBtn = buttons.find((b) => b.innerText.includes('Reset Grid'));
+      if (resetBtn) resetBtn.click();
+    });
+    await new Promise((r) => setTimeout(r, 400));
 
     console.log('\n--- TEST SUITE 7: Sprint Customization & Milestone Manager ---');
     // Open Sprint Modal

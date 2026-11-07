@@ -208,6 +208,30 @@ The project uses the palette extracted from the user specification across both D
 * **Problem**: On pointer release (`handleEnd`), calling `compactLayout(..., null)` treated the user's placed widget as an unpinned element and forcibly pulled it back up to Row 1. Additionally, `getGridCoordFromPointer` assumed hardcoded 90px cells without accounting for responsive 12px/16px CSS grid gaps.
 * **Fix**: Updated `compactLayout(layout, activeTarget)` to preserve the user's chosen placement while only floating other unpinned widgets to fill vacant rows. Revised coordinate math to incorporate dynamic `colGap` and `rowGap` steps for 1:1 pointer tracking. Expanded corner and edge resize touch hit targets to 28px/16px with `touch-action: none`.
 
+### I. Bidirectional Gravity & Downward Compaction Drift Fix
+* **Problem**: When resizing a component downwards (expanding), lower components correctly shifted down to make room. However, when resizing upwards or inward (compacting/shrinking), lower components failed to float back up. Micro-wobbles during pointer movements triggered cumulative downward displacement, permanently stranding lower components at the bottom of the page (`row: 15..24`) with huge blank voids. Furthermore, clicking the Minimize button collapsed widget visual height to 1 but left lower widgets marooned at their old rows.
+* **Root Cause**: The collision resolution algorithm was purely a one-way downward shift (`if (other.row < newOtherRow) other.row = newOtherRow;`) with zero upward recovery mechanism. Additionally, mutating the layout state directly on every `pointermove` frame accumulated micro-displacements.
+* **Fix (`packLayout`)**:
+  1. Replaced one-way collision shifting with a deterministic **Bidirectional Gravity Packing Engine** (`packLayout`).
+  2. The active widget's coordinates and dimensions are locked.
+  3. All non-active widgets are sorted by their initial visual hierarchy (`row`, then `col`).
+  4. Each remaining widget is packed upwards into the earliest free row (`candidateRow >= 1`) without 2D bounding-box collision.
+  5. Expanding smoothly pushes lower widgets down; compacting/shrinking immediately and smoothly floats lower widgets **upward** via vertical gravity.
+  6. Minimize and Expand actions invoke `packLayout`, instantly eliminating voids.
+
+### J. Pure Delta-Based Pointer Physics & Snapshot-Based Drag Immutability
+* **Problem**: Grabbing a south resize handle immediately caused the widget's height to suddenly jump from 6 to 8 or 11, pushing everything below it down even when the user moved their mouse upward to compact.
+* **Root Cause**: `getGridCoordFromPointer` relied on absolute screen position: `rawRow = Math.floor((clientY - rect.top) / rowStep)`. Because content inside widgets (e.g. 6 milestone cards) dynamically expands CSS `grid-auto-rows: minmax(44px, auto)` to ~110px per row, the handle's physical `clientY` position was 805px (`805 - 142 = 663px / 60px = Row 11`). The moment the user touched the handle, the coordinate calculator incorrectly determined the mouse was at row 8..11!
+* **Fix**:
+  1. Implemented relative delta-based pointer physics:
+     ```javascript
+     const deltaCols = Math.round((clientX - dragStartOffset.current.mouseX) / colStep);
+     const deltaRows = Math.round((clientY - dragStartOffset.current.mouseY) / rowStep);
+     ```
+  2. For south resize: `newH = Math.max(limits.minH, Math.min(16, origH + deltaRows))`.
+  3. At pointerdown, `deltaRows = 0`, guaranteeing **zero jump** (`newH = origH = 6`).
+  4. Captured an immutable snapshot `initialLayout = JSON.parse(JSON.stringify(gridLayoutRef.current))` at pointerdown. Every move recalculates from `initialLayout`, making all drag and resize operations 100% pure, monotonic, and reversible.
+
 ---
 
 ## 5. Complete Application Source Code (`index.html`)
@@ -2009,3 +2033,64 @@ All remaining `truncate` classes on milestone items and card headers have been r
 `sw.js` has been updated to cache version `t-minus-v3` with a **Network-First** strategy for HTML document requests:
 * When online, navigation requests fetch the latest `index.html` from the server immediately, bypassing stale local caches.
 * When offline, it automatically serves the pre-cached PWA offline bundle.
+
+---
+
+### 8.7 Bidirectional Gravity Packing Engine & Delta Pointer Physics
+
+#### 1. Downward Compaction Drift Root Cause
+During component resizing:
+* When expanding downward, lower components properly moved down.
+* When compacting (moving mouse upward/inward), lower components drifted down the page instead of floating back up.
+* Root cause 1: The collision engine was one-way downward (`other.row = newOtherRow` when `other.row < newOtherRow`). There was no upward gravitational recovery when space was freed.
+* Root cause 2: `getGridCoordFromPointer` calculated rows using absolute viewport pixels: `Math.floor((clientY - rect.top) / rowStep)`. Because content inside widgets expands CSS row heights up to ~110px, grabbing a south handle at pixel 805 instantly registered as row 8..11, causing an immediate downward jump upon pointer contact.
+* Root cause 3: Live mutation of `gridLayoutRef.current` on every `pointermove` accumulated micro-wobble displacements with no ability to undo them.
+
+#### 2. Root Fix Architecture
+1. **Bidirectional Gravity Packing Engine (`packLayout`)**:
+   - Locks `activeId` at user-requested coordinates and dimensions.
+   - Preserves established visual hierarchy by sorting non-active widgets by `row`, then `col`.
+   - Packs each remaining widget upwards into the earliest non-colliding row (`candidateRow >= 1`).
+   - Downward expansions push lower widgets down; upward compactions immediately float lower widgets back up.
+   - Minimizing/expanding a widget automatically repacks the grid with gravity, eliminating empty row voids.
+2. **Delta-Based Pointer Physics**:
+   - `deltaCols = Math.round((clientX - startMouseX) / colStep)`
+   - `deltaRows = Math.round((clientY - startMouseY) / rowStep)`
+   - Eliminates all absolute coordinate guessing.
+   - At pointer contact, `deltaRows = 0` guaranteeing zero jump (`newH = origH`).
+3. **Immutable Snapshot on Gesture Start**:
+   - `initialLayout = JSON.parse(JSON.stringify(gridLayoutRef.current))` captured at pointerdown.
+   - Intermediate frames are pure projections from the clean snapshot, ensuring dragging back and forth is 100% reversible.
+
+---
+
+### 8.8 Automated End-to-End Test Suite Verification
+
+Run via Puppeteer test runner:
+```powershell
+node scripts/test_runner.js
+```
+
+| # | Test Suite | Description | Status |
+|---|---|---|---|
+| 1 | Page Load & Init | Page Title & Zero Runtime Errors | **PASS** |
+| 2 | Page Load & Init | Initial Theme is Dark (`forestDeep`) | **PASS** |
+| 3 | Clock & Timezone | Live Clock Header Renders & Formats Seconds | **PASS** |
+| 4 | Clock & Timezone | Timezone Switch to UTC Active State | **PASS** |
+| 5 | Countdown Engine | 4 Numeric Units (Days, Hours, Mins, Secs) | **PASS** |
+| 6 | Countdown Engine | Sub-24h Radial SVG Dial Rendering | **PASS** |
+| 7 | Full Text Wrapping | Milestone Titles Render with `break-words` | **PASS** |
+| 8 | Full Text Wrapping | Zero `truncate` Classes on Milestone Titles | **PASS** |
+| 9 | Full Text Wrapping | Interactive Checkbox Updates Progress Meter | **PASS** |
+| 10 | 2D Minimized Limits | Ultra-Slim Countdown (`h:1`) Single-Line Bar | **PASS** |
+| 11 | 2D Minimized Limits | Ultra-Slim Progress (`h:1`) Inline Strip | **PASS** |
+| 12 | 2D Minimized Limits | One-Touch Minimize Button Collapses to Lowest Limit | **PASS** |
+| 13 | Drag & Resize Physics | Resize Handle Hit Targets (>= 24px) | **PASS** |
+| 14 | Drag & Resize Physics | Dragged Widget Stays at Placed Row (No Snap-Back) | **PASS** |
+| 15 | Drag & Resize Physics | Countdown Compacts Upwards via Resize Handle | **PASS** |
+| 16 | Drag & Resize Physics | Compaction Pulls Lower Widget Upwards (Bidirectional Gravity) | **PASS** |
+| 17 | Sprint Modal | Long Milestone Title Renders Without Cutoff | **PASS** |
+| 18 | Mobile Viewport | Mobile Widgets Stack Full-Width (>= 340px) | **PASS** |
+| 19 | Mobile Viewport | Date Badges Use `whitespace-nowrap` | **PASS** |
+| 20 | Visual Validation | Dark & Light High-Resolution Mobile Screenshots | **PASS** |
+
