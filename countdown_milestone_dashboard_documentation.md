@@ -196,6 +196,18 @@ The project uses the palette extracted from the user specification across both D
 * **Problem**: Standard resize only supported bottom-right scaling.
 * **Fix**: Created 8 directional anchors (`nw`, `ne`, `sw`, `se`, `n`, `s`, `e`, `w`) with dynamic coordinate recalculation when scaling from left or top edges.
 
+### F. Mobile Text Truncation (`...`) & Asymmetric Multi-Line Wrapping
+* **Problem**: Rigid `truncate` and `line-clamp-1` cut off milestone titles and descriptions with `...` on narrow mobile screens. Unwrapping with standard flex caused uneven vertical centering where checkboxes and tag badges drifted away from the text header.
+* **Fix**: Replaced all truncations with `break-words leading-snug`, anchored checkboxes and tag badges (`[T-10]`) to the top line using `items-start pt-0.5`, gave tag chips a fixed `min-w-[36px]` column width, and enforced a `min-h-[58px]` container so all cards remain perfectly symmetric and aligned regardless of title length.
+
+### G. Lower Minimum Limits (`minW: 2, minH: 1`) & Ultra-Compact Views
+* **Problem**: High minimum constraints (`minW: 4, minH: 3`) prevented users from minimizing widgets into compact companion cards.
+* **Fix**: Lowered constraints down to `minW: 2, minH: 1` across all widgets. Engineered adaptive ultra-slim layouts (`h: 1`) that render horizontal control bars with live timers, inline progress meters, and milestone status strips without overflowing.
+
+### H. Mouse-Up Snap-Back Teleportation & Grid Drift
+* **Problem**: On pointer release (`handleEnd`), calling `compactLayout(..., null)` treated the user's placed widget as an unpinned element and forcibly pulled it back up to Row 1. Additionally, `getGridCoordFromPointer` assumed hardcoded 90px cells without accounting for responsive 12px/16px CSS grid gaps.
+* **Fix**: Updated `compactLayout(layout, activeTarget)` to preserve the user's chosen placement while only floating other unpinned widgets to fill vacant rows. Revised coordinate math to incorporate dynamic `colGap` and `rowGap` steps for 1:1 pointer tracking. Expanded corner and edge resize touch hit targets to 28px/16px with `touch-action: none`.
+
 ---
 
 ## 5. Complete Application Source Code (`index.html`)

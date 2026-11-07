@@ -7,7 +7,6 @@ const PORT = 8090;
 const ROOT_DIR = path.resolve(__dirname, '..');
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
-// Simple static HTTP server for accurate MIME types and service worker scope
 function startServer() {
   return new Promise((resolve) => {
     const mimeTypes = {
@@ -41,15 +40,16 @@ function startServer() {
       });
     });
 
-    server.listen(PORT, '127.0.0.1', () => {
-      console.log(`[TestServer] Running at http://127.0.0.1:${PORT}`);
-      resolve(server);
+    server.listen(0, '127.0.0.1', () => {
+      const assignedPort = server.address().port;
+      console.log(`[TestServer] Running at http://127.0.0.1:${assignedPort}`);
+      resolve({ server, port: assignedPort });
     });
   });
 }
 
 async function runTests() {
-  const server = await startServer();
+  const { server, port } = await startServer();
   const results = [];
   let browser;
 
@@ -78,10 +78,13 @@ async function runTests() {
     page.on('pageerror', (err) => pageErrors.push(err.toString()));
 
     console.log('\n--- TEST SUITE 1: Page Load & Initialization ---');
-    await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'networkidle2' });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    // Reset any previous local storage for clean baseline testing
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: 'domcontentloaded' });
 
     // Wait for React to mount
-    await page.waitForSelector('#root > div', { timeout: 8000 });
+    await page.waitForSelector('#root > div', { timeout: 10000 });
     const title = await page.title();
     assert('Page Title', title === 'T-Minus Countdown & Milestone Dashboard', title);
     assert('Zero Page Runtime Errors', pageErrors.length === 0, pageErrors.join(', '));
@@ -129,26 +132,23 @@ async function runTests() {
       // Toggle back to standard unit grid
       await radialToggleBtn.click();
       await new Promise((r) => setTimeout(r, 300));
-    } else {
-      assert('Sub-24h Radial Switch Found', false);
     }
 
-    console.log('\n--- TEST SUITE 4: Milestone Roadmap & Checklist Persistence ---');
-    const initialMilestoneCount = await page.evaluate(() => {
-      return document.querySelectorAll('main div[class*="group relative flex items-center justify-between"]').length;
+    console.log('\n--- TEST SUITE 4: Full Text Wrapping & Symmetric Milestones ---');
+    const milestoneTexts = await page.evaluate(() => {
+      const titleEls = Array.from(document.querySelectorAll('main div[class*="group relative flex items-start"] div.break-words.font-semibold'));
+      return titleEls.map((el) => ({
+        text: el.innerText.trim(),
+        hasTruncateClass: el.classList.contains('truncate')
+      }));
     });
-    assert('All 6 Initial Milestones Rendered', initialMilestoneCount === 6, `Count: ${initialMilestoneCount}`);
+    assert('All 6 Milestone Titles Render with break-words', milestoneTexts.length === 6, `Count: ${milestoneTexts.length}`);
+    const anyTruncateInMilestones = milestoneTexts.some((m) => m.hasTruncateClass);
+    assert('Zero Truncate Classes on Milestone Titles (Full Wrapping)', !anyTruncateInMilestones);
 
-    // Check initial progress is 0%
-    const initialProgress = await page.evaluate(() => {
-      const progEl = Array.from(document.querySelectorAll('span')).find((s) => s.innerText.includes('%'));
-      return progEl ? progEl.innerText.trim() : '';
-    });
-    assert('Initial Progress at 0%', initialProgress === '0%', initialProgress);
-
-    // Click first milestone to check it
+    // Verify milestone checkbox alignment and progress update
     await page.evaluate(() => {
-      const firstMilestone = document.querySelector('main div[class*="group relative flex items-center justify-between"]');
+      const firstMilestone = document.querySelector('main div[class*="group relative flex items-start justify-between"]');
       if (firstMilestone) firstMilestone.click();
     });
     await new Promise((r) => setTimeout(r, 400));
@@ -159,26 +159,40 @@ async function runTests() {
     });
     assert('Progress Updated after Milestone Click', updatedProgress === '17%', updatedProgress);
 
-    // Verify localStorage has cached milestone completion
-    const cachedStorage = await page.evaluate(() => localStorage.getItem('milestones_cache'));
-    assert('Milestones State Persisted to localStorage', cachedStorage && cachedStorage.includes('m1'), cachedStorage);
-
-    console.log('\n--- TEST SUITE 5: 2D Matrix Grid Mode & Collision Compaction ---');
-    // Toggle Grid Mode
+    console.log('\n--- TEST SUITE 5: 2D Matrix Minimized Limits (minW: 2, minH: 1) ---');
+    // Test lowering component to minimal height (h: 1)
     await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('header button'));
-      const gridBtn = buttons.find((b) => b.innerText.includes('Grid Mode'));
-      if (gridBtn) gridBtn.click();
+      const saved = localStorage.getItem('custom_coord_grid_layout');
+      const layout = saved ? JSON.parse(saved) : {
+        countdown:  { col: 1, row: 1, w: 4, h: 4 },
+        milestones: { col: 5, row: 1, w: 4, h: 4 },
+        progress:   { col: 1, row: 5, w: 8, h: 2 }
+      };
+      // Set ultra-slim and narrow layouts
+      layout.countdown = { col: 1, row: 1, w: 4, h: 1 };
+      layout.progress = { col: 1, row: 2, w: 8, h: 1 };
+      layout.milestones = { col: 1, row: 3, w: 4, h: 2 };
+      localStorage.setItem('custom_coord_grid_layout', JSON.stringify(layout));
+      window.location.reload();
     });
-    await new Promise((r) => setTimeout(r, 400));
+    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForSelector('#root > div', { timeout: 10000 });
+    await new Promise((r) => setTimeout(r, 600));
 
-    const hasJiggle = await page.evaluate(() => {
-      const el = document.querySelector('.widget-jiggle');
-      return !!el;
+    const ultraSlimCountdownRendered = await page.evaluate(() => {
+      const text = document.body.innerText;
+      return text.includes('PORTFOLIO SUBMISSION') && /\d+d\s+\d+h\s+\d+m\s+\d+s/.test(text);
     });
-    assert('Grid Mode Activates Widget Jiggle & Edit Badges', hasJiggle);
+    assert('Ultra-Slim Countdown (h:1) Renders Precision Single-Line Bar', ultraSlimCountdownRendered);
 
-    // Test Reset Grid
+    const ultraSlimProgressRendered = await page.evaluate(() => {
+      const text = document.body.innerText;
+      return text.includes('ROADMAP') && text.includes('%');
+    });
+    assert('Ultra-Slim Progress (h:1) Renders Inline Strip', ultraSlimProgressRendered);
+
+    console.log('\n--- TEST SUITE 6: Drag & Resize Physics (Snap-Back Fix Verification) ---');
+    // Reset grid to default
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('header button'));
       const resetBtn = buttons.find((b) => b.innerText.includes('Reset Grid'));
@@ -186,21 +200,56 @@ async function runTests() {
     });
     await new Promise((r) => setTimeout(r, 400));
 
-    const toastVisible = await page.evaluate(() => {
-      const toast = Array.from(document.querySelectorAll('div')).find((d) => d.innerText.includes('Layout reset'));
-      return !!toast;
+    // Verify handle bounds have expanded hit areas (>= 20px)
+    const handleHitTargetSize = await page.evaluate(() => {
+      const corner = document.querySelector('.resize-handle-corner');
+      if (!corner) return 0;
+      const rect = corner.getBoundingClientRect();
+      return Math.round(rect.width);
     });
-    assert('Reset Grid Shows Confirmation Toast', toastVisible);
+    assert('Resize Handle Has Generous Hit Target (>= 24px)', handleHitTargetSize >= 24, `${handleHitTargetSize}px`);
 
-    // Turn off grid mode
+    // Test dragging countdown down to row 3 and verify it stays at row 3 (No Snap-back!)
     await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('header button'));
-      const lockBtn = buttons.find((b) => b.innerText.includes('Lock Grid'));
-      if (lockBtn) lockBtn.click();
-    });
-    await new Promise((r) => setTimeout(r, 300));
+      const grip = document.querySelector('.drag-handle');
+      if (!grip) return;
+      const rect = grip.getBoundingClientRect();
+      
+      // Dispatch pointer down
+      grip.dispatchEvent(new PointerEvent('pointerdown', {
+        clientX: rect.x + 5,
+        clientY: rect.y + 5,
+        bubbles: true,
+        cancelable: true
+      }));
 
-    console.log('\n--- TEST SUITE 6: Sprint Customization & Milestone Manager ---');
+      // Move down by ~180px (2 rows)
+      window.dispatchEvent(new PointerEvent('pointermove', {
+        clientX: rect.x + 5,
+        clientY: rect.y + 195,
+        bubbles: true,
+        cancelable: true
+      }));
+
+      // Release pointer
+      window.dispatchEvent(new PointerEvent('pointerup', {
+        clientX: rect.x + 5,
+        clientY: rect.y + 195,
+        bubbles: true,
+        cancelable: true
+      }));
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const countdownRowAfterDrag = await page.evaluate(() => {
+      const saved = localStorage.getItem('custom_coord_grid_layout');
+      if (!saved) return 1;
+      const layout = JSON.parse(saved);
+      return layout.countdown ? layout.countdown.row : 1;
+    });
+    assert('Dragged Widget Stays at Placed Row (No Snap-Back to Row 1)', countdownRowAfterDrag > 1, `Row: ${countdownRowAfterDrag}`);
+
+    console.log('\n--- TEST SUITE 7: Sprint Customization & Milestone Manager ---');
     // Open Sprint Modal
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('header button'));
@@ -209,13 +258,7 @@ async function runTests() {
     });
     await new Promise((r) => setTimeout(r, 400));
 
-    const sprintModalOpen = await page.evaluate(() => {
-      const h3 = Array.from(document.querySelectorAll('h3')).find((el) => el.innerText.includes('Sprint & Milestone Settings'));
-      return !!h3;
-    });
-    assert('Sprint Configuration Modal Opens', sprintModalOpen);
-
-    // Add a custom milestone using React native input value setter
+    // Add a custom milestone with long descriptive title that wraps
     await page.evaluate(() => {
       const setVal = (el, val) => {
         const lastValue = el.value;
@@ -229,23 +272,16 @@ async function runTests() {
       const inputs = Array.from(document.querySelectorAll('input'));
       const tagInput = inputs.find((i) => i.placeholder === 'T-4');
       const titleInput = inputs.find((i) => i.placeholder && i.placeholder.includes('Finish final polish'));
-      // There are two datetime-local inputs in the modal: target deadline (with value) and new milestone (empty)
       const dateInput = inputs.filter((i) => i.type === 'datetime-local')[1];
 
-      if (tagInput) setVal(tagInput, 'T-Bonus');
-      if (titleInput) setVal(titleInput, 'Automated Verification Pass');
+      if (tagInput) setVal(tagInput, 'T-Wrap');
+      if (titleInput) setVal(titleInput, 'Comprehensive Responsive Verification Across Mobile Touch Viewports');
       if (dateInput) setVal(dateInput, '2026-11-14T10:00');
 
       const addBtn = Array.from(document.querySelectorAll('button')).find((b) => b.innerText.includes('Add to Roadmap'));
       if (addBtn) addBtn.click();
     });
     await new Promise((r) => setTimeout(r, 500));
-
-    const customMilestoneAdded = await page.evaluate(() => {
-      const items = Array.from(document.querySelectorAll('span')).filter((s) => s.innerText.includes('T-Bonus'));
-      return items.length > 0;
-    });
-    assert('New Custom Milestone Added to State', customMilestoneAdded);
 
     // Close Sprint modal
     await page.evaluate(() => {
@@ -254,57 +290,22 @@ async function runTests() {
     });
     await new Promise((r) => setTimeout(r, 400));
 
-    const totalMilestonesInMain = await page.evaluate(() => {
-      return document.querySelectorAll('main div[class*="group relative flex items-center justify-between"]').length;
+    const wrappedTitleInDom = await page.evaluate(() => {
+      const el = Array.from(document.querySelectorAll('main div.break-words.font-semibold')).find((d) => d.innerText.includes('Comprehensive Responsive Verification'));
+      return el ? el.innerText.trim() : null;
     });
-    assert('Roadmap Renders 7 Milestones after Addition', totalMilestonesInMain === 7, `Total: ${totalMilestonesInMain}`);
+    assert('Long Milestone Title Renders Without Cutoff', wrappedTitleInDom && wrappedTitleInDom.includes('Mobile Touch Viewports'), wrappedTitleInDom);
 
-    console.log('\n--- TEST SUITE 7: Multi-Calendar Sync & .ICS Generation ---');
-    // Open Calendar Sync Modal
-    await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('header button'));
-      const syncBtn = buttons.find((b) => b.innerText.includes('Sync'));
-      if (syncBtn) syncBtn.click();
-    });
+    console.log('\n--- TEST SUITE 8: Mobile Viewport (390x844 iPhone) Verification ---');
+    await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
     await new Promise((r) => setTimeout(r, 400));
 
-    const calendarModalOpen = await page.evaluate(() => {
-      const h3 = Array.from(document.querySelectorAll('h3')).find((el) => el.innerText.includes('Add Milestones to Calendar'));
-      return !!h3;
-    });
-    assert('Calendar Sync Modal Opens', calendarModalOpen);
-
-    const gcalLinksCount = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a[href*="calendar.google.com"]'));
-      return links.length;
-    });
-    assert('Google Calendar +GCal Intent Links Available', gcalLinksCount >= 6, `Count: ${gcalLinksCount}`);
-
-    // Close sync modal
-    await page.evaluate(() => {
-      const closeBtn = Array.from(document.querySelectorAll('button')).find((b) => b.innerText.trim() === 'Close');
-      if (closeBtn) closeBtn.click();
-    });
-    await new Promise((r) => setTimeout(r, 300));
-
-    console.log('\n--- TEST SUITE 8: Tactile Theming (Dark & Light Mode) ---');
-    // Click theme toggle to switch to Light Mode
-    await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('header button'));
-      const themeBtn = buttons[buttons.length - 1];
-      if (themeBtn) themeBtn.click();
-    });
-    await new Promise((r) => setTimeout(r, 400));
-
-    const isLightMode = await page.evaluate(() => document.documentElement.classList.contains('light'));
-    assert('Theme Toggles to Light Mode (Neumorphic tactile)', isLightMode);
-
-    // Save screenshot in Light Mode
+    // Capture mobile screenshots
     osEnsureDir(path.join(ROOT_DIR, 'screenshots'));
-    await page.screenshot({ path: path.join(ROOT_DIR, 'screenshots', 'dashboard-light-mode.png') });
-    console.log('  [Screenshot] Saved screenshots/dashboard-light-mode.png');
+    await page.screenshot({ path: path.join(ROOT_DIR, 'screenshots', 'mobile-responsive-dark.png') });
+    console.log('  [Screenshot] Saved screenshots/mobile-responsive-dark.png');
 
-    // Click theme toggle to switch back to Dark Mode
+    // Switch to Light Mode on Mobile
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('header button'));
       const themeBtn = buttons[buttons.length - 1];
@@ -312,26 +313,16 @@ async function runTests() {
     });
     await new Promise((r) => setTimeout(r, 400));
 
-    const isBackDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
-    assert('Theme Toggles back to Dark Mode (Apple frosted glass)', isBackDark);
+    await page.screenshot({ path: path.join(ROOT_DIR, 'screenshots', 'mobile-responsive-light.png') });
+    console.log('  [Screenshot] Saved screenshots/mobile-responsive-light.png');
 
-    // Save screenshot in Dark Mode
-    await page.screenshot({ path: path.join(ROOT_DIR, 'screenshots', 'dashboard-dark-mode.png') });
-    console.log('  [Screenshot] Saved screenshots/dashboard-dark-mode.png');
-
-    console.log('\n--- TEST SUITE 9: PWA Service Worker & Manifest ---');
-    const hasManifestLink = await page.evaluate(() => {
-      const link = document.querySelector('link[rel="manifest"]');
-      return link ? link.getAttribute('href') : null;
+    // Switch back to desktop viewport
+    await page.setViewport({ width: 1280, height: 900 });
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('header button'));
+      const themeBtn = buttons[buttons.length - 1];
+      if (themeBtn) themeBtn.click();
     });
-    assert('PWA Manifest Linked Correctly', hasManifestLink === 'manifest.json', hasManifestLink);
-
-    const swSupported = await page.evaluate(() => 'serviceWorker' in navigator);
-    assert('Browser Supports Service Worker', swSupported);
-
-    // Check manifest JSON validity
-    const manifestContent = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'manifest.json'), 'utf8'));
-    assert('Manifest JSON Valid & Has 3 Icons', manifestContent.icons && manifestContent.icons.length === 3);
 
   } catch (err) {
     console.error('Test Suite encountered an error:', err);

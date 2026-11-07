@@ -71,17 +71,17 @@
 
     /* Apple glassmorphism styling (Dark Mode) */
     .glass-dark {
-      background: rgba(11, 43, 38, 0.75);
+      background: rgba(11, 43, 38, 0.85);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(142, 182, 155, 0.16);
+      border: 1px solid rgba(142, 182, 155, 0.18);
       box-shadow: 0 16px 36px 0 rgba(2, 15, 16, 0.65);
     }
     .glass-card {
-      background: rgba(22, 56, 50, 0.65);
+      background: rgba(22, 56, 50, 0.7);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(142, 182, 155, 0.14);
+      border: 1px solid rgba(142, 182, 155, 0.15);
     }
 
     .dial-glow {
@@ -105,68 +105,75 @@
     .drag-handle {
       cursor: grab;
       touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
     .drag-handle:active {
       cursor: grabbing;
     }
     .widget-dragging {
-      opacity: 0.92;
-      transform: scale(1.02);
+      opacity: 0.94;
+      transform: scale(1.015);
       z-index: 40 !important;
-      box-shadow: 0 24px 48px -12px rgba(5, 31, 32, 0.8), 0 0 0 2px #8EB69B;
+      box-shadow: 0 24px 48px -12px rgba(5, 31, 32, 0.85), 0 0 0 2px #8EB69B;
     }
 
     /* Jiggle Animation */
     @keyframes widgetJiggle {
-      0% { transform: rotate(-0.75deg) scale(0.995); }
-      50% { transform: rotate(0.85deg) scale(1.005); }
-      100% { transform: rotate(-0.75deg) scale(0.995); }
+      0% { transform: rotate(-0.65deg) scale(0.996); }
+      50% { transform: rotate(0.75deg) scale(1.004); }
+      100% { transform: rotate(-0.65deg) scale(0.996); }
     }
     .widget-jiggle {
       animation: widgetJiggle 0.28s ease-in-out infinite alternate;
     }
 
-    /* 8-Directional Resize Handles */
+    /* 8-Directional Resize Handles with generous touch hit area */
     .resize-handle-corner {
       position: absolute;
-      width: 14px;
-      height: 14px;
+      width: 28px;
+      height: 28px;
       z-index: 35;
       touch-action: none;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.2s, transform 0.15s;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .resize-handle-edge {
       position: absolute;
       z-index: 34;
       touch-action: none;
-      transition: background-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    .handle-nw { top: -2px; left: -2px; cursor: nwse-resize; }
-    .handle-ne { top: -2px; right: -2px; cursor: nesw-resize; }
-    .handle-sw { bottom: -2px; left: -2px; cursor: nesw-resize; }
-    .handle-se { bottom: -2px; right: -2px; cursor: nwse-resize; }
+    .handle-nw { top: -8px; left: -8px; cursor: nwse-resize; }
+    .handle-ne { top: -8px; right: -8px; cursor: nesw-resize; }
+    .handle-sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
+    .handle-se { bottom: -8px; right: -8px; cursor: nwse-resize; }
 
-    .handle-n { top: -3px; left: 16px; right: 16px; height: 8px; cursor: ns-resize; }
-    .handle-s { bottom: -3px; left: 16px; right: 16px; height: 8px; cursor: ns-resize; }
-    .handle-w { left: -3px; top: 16px; bottom: 16px; width: 8px; cursor: ew-resize; }
-    .handle-e { right: -3px; top: 16px; bottom: 16px; width: 8px; cursor: ew-resize; }
+    .handle-n { top: -8px; left: 24px; right: 24px; height: 16px; cursor: ns-resize; }
+    .handle-s { bottom: -8px; left: 24px; right: 24px; height: 16px; cursor: ns-resize; }
+    .handle-w { left: -8px; top: 24px; bottom: 24px; width: 16px; cursor: ew-resize; }
+    .handle-e { right: -8px; top: 24px; bottom: 24px; width: 16px; cursor: ew-resize; }
 
     .handle-indicator-corner {
-      width: 7px;
-      height: 7px;
+      width: 8px;
+      height: 8px;
       border-radius: 2px;
       background: #8EB69B;
-      opacity: 0.45;
+      opacity: 0.55;
       transition: all 0.15s ease;
     }
     .handle-indicator-edge {
       border-radius: 9999px;
       background: #8EB69B;
-      opacity: 0.2;
+      opacity: 0.3;
       transition: all 0.15s ease;
     }
 
@@ -174,16 +181,16 @@
     .resize-handle-corner:hover .handle-indicator-corner,
     .resize-handle-corner:active .handle-indicator-corner {
       opacity: 1;
-      transform: scale(1.3);
+      transform: scale(1.35);
       background: #DAF1DE;
-      box-shadow: 0 0 8px rgba(218, 241, 222, 0.7);
+      box-shadow: 0 0 8px rgba(218, 241, 222, 0.75);
     }
 
     .group:hover .handle-indicator-edge,
     .resize-handle-edge:hover .handle-indicator-edge,
     .resize-handle-edge:active .handle-indicator-edge {
-      opacity: 0.85;
-      background: #8EB69B;
+      opacity: 0.9;
+      background: #DAF1DE;
     }
 
     /* Scrollbars */
@@ -195,7 +202,7 @@
       background: transparent;
     }
     .dark ::-webkit-scrollbar-thumb, html:not(.light) ::-webkit-scrollbar-thumb {
-      background: rgba(142, 182, 155, 0.25);
+      background: rgba(142, 182, 155, 0.3);
       border-radius: 9999px;
     }
     .custom-scroll {
@@ -438,12 +445,13 @@
       const [resizingId, setResizingId] = useState(null);
       const [hoverCoord, setHoverCoord] = useState(null);
       const gridContainerRef = useRef(null);
-      const dragStartOffset = useRef({ mouseX: 0, mouseY: 0, origCol: 1, origRow: 1, origW: 4, origH: 4, isDraggingActive: false });
+      const dragStartOffset = useRef({ mouseX: 0, mouseY: 0, grabColOffset: 0, grabRowOffset: 0, origCol: 1, origRow: 1, origW: 4, origH: 4, isDraggingActive: false });
       
+      // Lowest limits: Allowed to minimize much lower as requested!
       const MIN_CONSTRAINTS = {
-        countdown: { minW: 3, minH: 3 },
-        milestones: { minW: 4, minH: 3 },
-        progress: { minW: 3, minH: 2 }
+        countdown: { minW: 2, minH: 1 },
+        milestones: { minW: 2, minH: 1 },
+        progress: { minW: 2, minH: 1 }
       };
 
       const activeDragIdRef = useRef(null);
@@ -475,18 +483,18 @@
         } catch(e) {}
       };
 
-      // Gravity compaction pass
-      const compactLayout = (layout, activeId) => {
+      // Gravity compaction pass that respects and preserves the active widget's placement
+      const compactLayout = (layout, preserveId) => {
         const sortedKeys = Object.keys(layout).sort((a, b) => {
-          if (a === activeId) return -1;
-          if (b === activeId) return 1;
+          if (a === preserveId) return -1;
+          if (b === preserveId) return 1;
           return layout[a].row - layout[b].row;
         });
 
         const compacted = { ...layout };
 
         sortedKeys.forEach((key) => {
-          if (key === activeId) return;
+          if (key === preserveId) return; // Never pull down or up the user's active target!
 
           let targetRow = 1;
           while (true) {
@@ -510,50 +518,80 @@
               break;
             }
             targetRow++;
-            if (targetRow > 10) break;
+            if (targetRow > 16) break;
           }
         });
 
         return compacted;
       };
 
+      // Robust iterative collision resolution that prevents hopping or teleporting
       const resolveCollisions = (targetId, nextLayout) => {
         const result = { ...nextLayout };
-        const keys = Object.keys(result);
         const target = result[targetId];
 
         target.col = Math.max(1, Math.min(8 - target.w + 1, target.col));
-        target.row = Math.max(1, Math.min(8, target.row));
+        target.row = Math.max(1, Math.min(14, target.row));
 
-        keys.forEach((otherId) => {
-          if (otherId === targetId) return;
-          const other = result[otherId];
+        let changed = true;
+        let passes = 0;
+        while (changed && passes < 12) {
+          changed = false;
+          passes++;
 
-          const overlapX = !(target.col + target.w <= other.col || target.col >= other.col + other.w);
-          const overlapY = !(target.row + target.h <= other.row || target.row >= other.row + other.h);
+          for (const idA of Object.keys(result)) {
+            for (const idB of Object.keys(result)) {
+              if (idA === idB) continue;
+              const a = result[idA];
+              const b = result[idB];
 
-          if (overlapX && overlapY) {
-            result[otherId] = {
-              ...other,
-              row: target.row + target.h
-            };
+              const overlapX = !(a.col + a.w <= b.col || a.col >= b.col + b.w);
+              const overlapY = !(a.row + a.h <= b.row || a.row >= b.row + b.h);
+
+              if (overlapX && overlapY) {
+                if (idA === targetId) {
+                  result[idB] = { ...b, row: a.row + a.h };
+                  changed = true;
+                } else if (idB === targetId) {
+                  result[idA] = { ...a, row: b.row + b.h };
+                  changed = true;
+                } else if (a.row <= b.row) {
+                  result[idB] = { ...b, row: a.row + a.h };
+                  changed = true;
+                } else {
+                  result[idA] = { ...a, row: b.row + b.h };
+                  changed = true;
+                }
+              }
+            }
           }
-        });
+        }
 
         return compactLayout(result, targetId);
       };
 
+      // Accurate pixel-to-coordinate mapping accounting for grid gap & scale
       const getGridCoordFromPointer = (clientX, clientY) => {
         if (!gridContainerRef.current) return { col: 1, row: 1 };
         const rect = gridContainerRef.current.getBoundingClientRect();
-        const cellWidth = Math.max(20, rect.width / 8);
-        const cellHeight = 90;
+        
+        const isSm = window.innerWidth >= 640;
+        const colGap = isSm ? 16 : 12;
+        const rowGap = isSm ? 16 : 12;
 
-        const rawCol = Math.floor((clientX - rect.left) / cellWidth) + 1;
-        const rawRow = Math.floor((clientY - rect.top) / cellHeight) + 1;
+        const availableWidth = Math.max(100, rect.width - 7 * colGap);
+        const colWidth = availableWidth / 8;
+        const colStep = colWidth + colGap;
+
+        const relX = clientX - rect.left;
+        const rawCol = Math.floor(relX / colStep) + 1;
+
+        const rowStep = 85 + rowGap;
+        const relY = clientY - rect.top;
+        const rawRow = Math.floor(relY / rowStep) + 1;
 
         const col = Math.max(1, Math.min(8, rawCol));
-        const row = Math.max(1, Math.min(8, rawRow));
+        const row = Math.max(1, Math.min(14, rawRow));
         return { col, row };
       };
 
@@ -641,7 +679,7 @@
             const targetRow = coords.row - (dragStartOffset.current.grabRowOffset || 0);
 
             const clampedCol = Math.max(1, Math.min(8 - item.w + 1, targetCol));
-            const clampedRow = Math.max(1, Math.min(6, targetRow));
+            const clampedRow = Math.max(1, Math.min(14, targetRow));
 
             if (clampedCol !== item.col || clampedRow !== item.row) {
               const updated = {
@@ -655,7 +693,7 @@
             const item = currentLayout[id];
             if (!item) return;
 
-            const limits = MIN_CONSTRAINTS[id] || { minW: 3, minH: 2 };
+            const limits = MIN_CONSTRAINTS[id] || { minW: 2, minH: 1 };
             const { origCol, origRow, origW, origH } = dragStartOffset.current;
             const origRight = origCol + origW - 1;
             const origBottom = origRow + origH - 1;
@@ -674,7 +712,7 @@
             }
 
             if (direction.includes('s')) {
-              newH = Math.max(limits.minH, Math.min(6, coords.row - origRow + 1));
+              newH = Math.max(limits.minH, Math.min(10, coords.row - origRow + 1));
             } else if (direction.includes('n')) {
               const candidateRow = Math.max(1, Math.min(origBottom - limits.minH + 1, coords.row));
               newRow = candidateRow;
@@ -693,10 +731,12 @@
 
         const handleEnd = () => {
           const finishedDrag = activeDragIdRef.current;
-          const finishedResize = resizingIdRef.current;
+          const finishedResize = resizingIdRef.current ? resizingIdRef.current.id : null;
+          const activeTarget = finishedDrag || finishedResize;
 
-          if (finishedDrag || finishedResize) {
-            const finalClean = compactLayout(gridLayoutRef.current, null);
+          if (activeTarget) {
+            // Keep the user's active widget locked at its placed position!
+            const finalClean = compactLayout(gridLayoutRef.current, activeTarget);
             saveLayout(finalClean);
             triggerHaptic("medium");
           }
@@ -726,13 +766,15 @@
         triggerHaptic("light");
       };
 
+      // Enhanced presets that cycle from minimal to standard to full width
       const cycleWidgetPreset = (id, e) => {
         e.stopPropagation();
         const current = gridLayout[id];
         let nextW = 4;
         let nextH = 4;
-        if (current.w <= 2) { nextW = 4; nextH = 4; }
-        else if (current.w <= 4) { nextW = 8; nextH = current.h; }
+        if (current.w <= 2) { nextW = 4; nextH = 3; }
+        else if (current.w <= 4 && current.h <= 3) { nextW = 8; nextH = 3; }
+        else if (current.w >= 8) { nextW = 2; nextH = 2; }
         else { nextW = 4; nextH = 3; }
 
         const clampedCol = Math.min(8 - nextW + 1, current.col);
@@ -912,13 +954,85 @@
         triggerHaptic("medium");
       };
 
+      // Responsive rendering supporting ultra-compact sizes and elegant text wrapping
       const renderWidgetContent = (type) => {
         const currentLayout = gridLayout[type] || { w: 4, h: 4 };
+        const isUltraSlim = currentLayout.h <= 1;
+        const isNarrow = currentLayout.w <= 2;
         const isCompact = currentLayout.w <= 3 || currentLayout.h <= 3;
 
         if (type === "countdown") {
+          // Ultra-slim single row view (h: 1)
+          if (isUltraSlim) {
+            return (
+              <div className={`w-full h-full rounded-2xl p-3 flex items-center justify-between gap-3 overflow-hidden ${
+                theme === 'dark' ? 'glass-dark' : 'neu-raised'
+              }`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div 
+                    onPointerDown={(e) => handleStartDrag("countdown", e)}
+                    className="drag-handle p-1 -ml-1 text-[#8EB69B]/70 hover:text-[#DAF1DE] transition-colors cursor-grab active:cursor-grabbing select-none flex-shrink-0" 
+                    title="Drag widget"
+                  >
+                    <Icon name="grip" className="w-3.5 h-3.5 pointer-events-none" />
+                  </div>
+                  <span className={`w-2 h-2 rounded-full ${isCompletedSprint ? 'bg-[#FF3B30]' : 'bg-[#8EB69B]'} animate-pulse flex-shrink-0`} />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-mono font-bold uppercase text-[#8EB69B] truncate">{targetTitle}</div>
+                    <div className="text-[8px] font-mono text-[#8EB69B]/70 truncate">{formattedTargetDisplay}</div>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0 font-mono font-bold text-xs sm:text-sm text-[#DAF1DE] tabular-nums">
+                  {isCompletedSprint ? "COMPLETED" : `${days}d ${String(hours).padStart(2,'0')}h ${String(minutes).padStart(2,'0')}m ${String(seconds).padStart(2,'0')}s`}
+                </div>
+              </div>
+            );
+          }
+
+          // Narrow column view (w: 2)
+          if (isNarrow) {
+            return (
+              <div className={`w-full h-full rounded-2xl p-3 flex flex-col justify-between overflow-hidden ${
+                theme === 'dark' ? 'glass-dark' : 'neu-raised'
+              }`}>
+                <div className="flex items-center justify-between pb-1 border-b border-[#8EB69B]/10">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <div 
+                      onPointerDown={(e) => handleStartDrag("countdown", e)}
+                      className="drag-handle p-1 -ml-1 text-[#8EB69B]/70 hover:text-[#DAF1DE] cursor-grab active:cursor-grabbing select-none flex-shrink-0"
+                    >
+                      <Icon name="grip" className="w-3 h-3 pointer-events-none" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-[#8EB69B] truncate">T-MINUS</span>
+                  </div>
+                  <span className="text-[8px] font-mono text-[#DAF1DE]">{currentLayout.w}x{currentLayout.h}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 my-1">
+                  <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-black/20 text-center">
+                    <span className="font-mono font-bold text-sm text-[#8EB69B] tabular-nums">{days}</span>
+                    <span className="text-[7px] font-mono text-[#8EB69B]/70">DAYS</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-black/20 text-center">
+                    <span className="font-mono font-bold text-sm text-[#8EB69B] tabular-nums">{hours}</span>
+                    <span className="text-[7px] font-mono text-[#8EB69B]/70">HRS</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-black/20 text-center">
+                    <span className="font-mono font-bold text-sm text-[#8EB69B] tabular-nums">{minutes}</span>
+                    <span className="text-[7px] font-mono text-[#8EB69B]/70">MIN</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-black/20 text-center">
+                    <span className="font-mono font-bold text-sm text-[#8EB69B] tabular-nums">{seconds}</span>
+                    <span className="text-[7px] font-mono text-[#8EB69B]/70">SEC</span>
+                  </div>
+                </div>
+                <div className="text-[8px] font-mono text-center text-[#8EB69B] truncate">{targetTitle}</div>
+              </div>
+            );
+          }
+
+          // Standard rich view (w >= 3, h >= 2)
           return (
-            <div className={`w-full h-full rounded-2xl sm:rounded-3xl p-4 sm:p-6 transition-all duration-300 relative overflow-hidden flex flex-col justify-between ${
+            <div className={`w-full h-full rounded-2xl sm:rounded-3xl p-4 sm:p-5 transition-all duration-300 relative overflow-hidden flex flex-col justify-between ${
               theme === 'dark' ? 'glass-dark' : 'neu-raised'
             }`}>
               <div className="flex items-center justify-between pb-2 sm:pb-3 border-b border-[#8EB69B]/10">
@@ -973,20 +1087,20 @@
               )}
 
               {isCompletedSprint ? (
-                <div className="flex flex-col items-center justify-center my-4 text-center">
-                  <div className="p-3 rounded-full bg-[#235347]/60 text-[#DAF1DE] mb-2 border border-[#8EB69B]/40">
-                    <Icon name="check-circle" className="w-8 h-8 text-[#8EB69B]" />
+                <div className="flex flex-col items-center justify-center my-3 text-center">
+                  <div className="p-2.5 rounded-full bg-[#235347]/60 text-[#DAF1DE] mb-1.5 border border-[#8EB69B]/40">
+                    <Icon name="check-circle" className="w-7 h-7 text-[#8EB69B]" />
                   </div>
-                  <span className="text-sm sm:text-base font-mono font-bold text-[#DAF1DE] tracking-wide">
+                  <span className="text-xs sm:text-sm font-mono font-bold text-[#DAF1DE] tracking-wide">
                     DEADLINE REACHED
                   </span>
-                  <span className="text-[10px] sm:text-xs text-[#8EB69B] font-mono mt-1">
+                  <span className="text-[9px] sm:text-[10px] text-[#8EB69B] font-mono mt-0.5">
                     Sprint completed. Great job!
                   </span>
                 </div>
               ) : isRadialActive ? (
                 <div className="flex flex-col items-center justify-center my-2 sm:my-3">
-                  <div className={`relative ${isCompact ? 'w-32 h-32' : 'w-44 h-44 sm:w-52 sm:h-52'} flex items-center justify-center`}>
+                  <div className={`relative ${isCompact ? 'w-28 h-28' : 'w-40 h-40 sm:w-48 sm:h-48'} flex items-center justify-center`}>
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="44" stroke={theme === 'dark' ? 'rgba(142, 182, 155, 0.18)' : '#8EB69B'} strokeWidth="2" strokeDasharray="1.2 3.8" fill="none" />
                       <circle cx="50" cy="50" r="40" stroke={theme === 'dark' ? '#0B2B26' : '#c4dbca'} strokeWidth="5" fill="none" />
@@ -995,15 +1109,15 @@
                     
                     <div className="absolute flex flex-col items-center text-center">
                       <div className="flex items-baseline font-mono tracking-tight drop-shadow-md">
-                        <span className={`${isCompact ? 'text-xl' : 'text-2xl sm:text-4xl'} font-light ${theme === 'dark' ? 'text-[#DAF1DE]' : 'text-[#0B2B26]'}`}>
+                        <span className={`${isCompact ? 'text-lg' : 'text-xl sm:text-3xl'} font-light ${theme === 'dark' ? 'text-[#DAF1DE]' : 'text-[#0B2B26]'}`}>
                           {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                         </span>
                         <div className="flex flex-col ml-1 items-start">
-                          <span className="text-[10px] sm:text-xs font-light text-red-500 leading-none">{Math.floor(hours)}</span>
-                          <span className="text-[7px] sm:text-[8px] uppercase font-mono tracking-wider opacity-60 underline leading-none mt-0.5">min</span>
+                          <span className="text-[9px] sm:text-[10px] font-light text-red-500 leading-none">{Math.floor(hours)}</span>
+                          <span className="text-[7px] uppercase font-mono tracking-wider opacity-60 underline leading-none mt-0.5">min</span>
                         </div>
                       </div>
-                      <span className="text-[8px] sm:text-[9px] font-mono tracking-wider text-[#8EB69B] mt-1 uppercase">Final Stretch</span>
+                      <span className="text-[8px] font-mono tracking-wider text-[#8EB69B] mt-0.5 uppercase">Final Stretch</span>
                     </div>
                   </div>
                 </div>
@@ -1015,10 +1129,10 @@
                     { label: "MINS", val: minutes },
                     { label: "SECS", val: seconds }
                   ].map((item) => (
-                    <div key={item.label} className={`flex flex-col items-center justify-center ${isCompact ? 'py-1.5' : 'py-2.5 sm:py-3'} rounded-xl border transition-all ${
+                    <div key={item.label} className={`flex flex-col items-center justify-center ${isCompact ? 'py-1.5' : 'py-2.5'} rounded-xl border transition-all ${
                       theme === 'dark' ? 'glass-card border-[#8EB69B]/15' : 'neu-card'
                     }`}>
-                      <span className={`${isCompact ? 'text-base sm:text-xl' : 'text-xl sm:text-2xl md:text-3xl'} font-bold font-mono tabular-nums tracking-tight text-[#8EB69B]`}>
+                      <span className={`${isCompact ? 'text-base sm:text-lg' : 'text-lg sm:text-2xl'} font-bold font-mono tabular-nums tracking-tight text-[#8EB69B]`}>
                         {String(item.val).padStart(2, '0')}
                       </span>
                       <span className="text-[7px] sm:text-[8px] font-mono font-medium tracking-widest text-[#8EB69B]/80 mt-0.5">
@@ -1029,12 +1143,13 @@
                 </div>
               )}
 
-              <div className={`p-2 sm:p-2.5 rounded-xl flex items-center justify-between border ${
+              {/* Wrapped symmetric event footer */}
+              <div className={`p-2 sm:p-2.5 rounded-xl flex items-center justify-between border gap-2 ${
                 theme === 'dark' ? 'bg-[#051F20]/70 border-[#8EB69B]/15' : 'neu-sunken border-transparent'
               }`}>
-                <div className="min-w-0 pr-2">
-                  <div className="text-[10px] sm:text-xs font-semibold text-[#DAF1DE] truncate">{targetTitle}</div>
-                  <div className="text-[8px] sm:text-[9px] text-[#8EB69B] font-mono mt-0.5 truncate">{formattedTargetDisplay}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] sm:text-xs font-semibold text-[#DAF1DE] break-words leading-snug">{targetTitle}</div>
+                  <div className="text-[8px] sm:text-[9px] text-[#8EB69B] font-mono mt-0.5 break-words leading-tight">{formattedTargetDisplay}</div>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <span className="text-[10px] sm:text-xs font-mono font-bold text-[#8EB69B]">
@@ -1047,8 +1162,37 @@
         }
 
         if (type === "progress") {
+          // Ultra-slim single row view (h: 1)
+          if (isUltraSlim) {
+            return (
+              <div className={`w-full h-full p-3 rounded-2xl flex items-center justify-between gap-3 overflow-hidden ${
+                theme === 'dark' ? 'glass-dark' : 'neu-raised'
+              }`}>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div 
+                    onPointerDown={(e) => handleStartDrag("progress", e)} 
+                    className="drag-handle p-1 -ml-1 text-[#8EB69B]/70 hover:text-[#DAF1DE] cursor-grab active:cursor-grabbing select-none"
+                  >
+                    <Icon name="grip" className="w-3.5 h-3.5 pointer-events-none" />
+                  </div>
+                  <span className="font-semibold text-[#8EB69B] uppercase font-mono text-[10px] sm:text-xs">ROADMAP</span>
+                </div>
+                <div className="flex-1 mx-2">
+                  <div className={`w-full h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-[#0B2B26]' : 'neu-sunken'}`}>
+                    <div className="h-full bg-gradient-to-r from-[#163832] via-[#235347] to-[#8EB69B] transition-all duration-500 rounded-full" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 font-mono text-xs text-[#8EB69B]">
+                  <span className="font-bold">{progressPercent}%</span>
+                  <span className="text-[10px] opacity-75">({completedCount}/{milestones.length})</span>
+                </div>
+              </div>
+            );
+          }
+
+          // Standard progress view
           return (
-            <div className={`w-full h-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl transition-all flex flex-col justify-between ${
+            <div className={`w-full h-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl transition-all flex flex-col justify-between overflow-hidden ${
               theme === 'dark' ? 'glass-dark' : 'neu-raised'
             }`}>
               <div>
@@ -1087,8 +1231,40 @@
         }
 
         if (type === "milestones") {
+          // Ultra-slim single row view (h: 1)
+          if (isUltraSlim) {
+            return (
+              <div className={`w-full h-full rounded-2xl p-3 flex items-center justify-between gap-3 overflow-hidden ${
+                theme === 'dark' ? 'glass-dark' : 'neu-raised'
+              }`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div 
+                    onPointerDown={(e) => handleStartDrag("milestones", e)} 
+                    className="drag-handle p-1 -ml-1 text-[#8EB69B]/70 hover:text-[#DAF1DE] cursor-grab active:cursor-grabbing select-none flex-shrink-0"
+                  >
+                    <Icon name="grip" className="w-3.5 h-3.5 pointer-events-none" />
+                  </div>
+                  <Icon name="check-square" className="w-4 h-4 text-[#8EB69B] flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold text-[#DAF1DE] uppercase font-mono truncate">MILESTONES</div>
+                    <div className="text-[8px] font-mono text-[#8EB69B] truncate">{completedCount} of {milestones.length} completed</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button onClick={() => setShowSprintModal(true)} className="p-1 rounded-md text-[#8EB69B] hover:text-[#DAF1DE]" title="Manage">
+                    <Icon name="plus" className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={downloadAllIcs} className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-[#235347] text-[#DAF1DE]" title="Export">
+                    .ICS
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          // Full responsive wrapped milestone roadmap view
           return (
-            <div className={`w-full h-full rounded-2xl sm:rounded-3xl p-4 sm:p-5 transition-all flex flex-col justify-between overflow-hidden ${
+            <div className={`w-full h-full rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 transition-all flex flex-col justify-between overflow-hidden ${
               theme === 'dark' ? 'glass-dark' : 'neu-raised'
             }`}>
               <div className="flex flex-col flex-1 min-h-0">
@@ -1105,8 +1281,8 @@
                       <Icon name="check-square" className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-xs sm:text-sm font-bold tracking-tight truncate">T-MINUS ROADMAP</h3>
-                      <p className="text-[8px] sm:text-[9px] text-[#8EB69B] truncate">Tap to toggle milestone</p>
+                      <h3 className="text-xs sm:text-sm font-bold tracking-tight break-words leading-tight">T-MINUS ROADMAP</h3>
+                      <p className="text-[8px] sm:text-[9px] text-[#8EB69B] break-words leading-tight">Tap to toggle milestone</p>
                     </div>
                   </div>
 
@@ -1136,7 +1312,8 @@
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 overflow-y-auto flex-1 pr-1 custom-scroll min-h-0">
+                {/* Symmetrical & cleanly wrapping milestones container */}
+                <div className="flex flex-col gap-2 overflow-y-auto flex-1 pr-1 custom-scroll min-h-0">
                   {milestones.length === 0 ? (
                     <div className="flex flex-col items-center justify-center p-6 text-center text-xs text-[#8EB69B]">
                       <span>No milestones found.</span>
@@ -1147,59 +1324,72 @@
                   ) : milestones.map((m, idx) => {
                     const isDone = !!completed[m.id];
                     const pillBgDark = [
-                      'bg-[#163832]/65',
-                      'bg-[#1a423b]/65',
-                      'bg-[#235347]/65',
-                      'bg-[#2c6356]/65',
-                      'bg-[#377567]/65',
-                      'bg-[#438a79]/65'
+                      'bg-[#163832]/75',
+                      'bg-[#1a423b]/75',
+                      'bg-[#235347]/75',
+                      'bg-[#2c6356]/75',
+                      'bg-[#377567]/75',
+                      'bg-[#438a79]/75'
                     ][idx % 6];
 
                     return (
                       <div
                         key={m.id}
                         onClick={() => toggleCheck(m.id)}
-                        className={`group relative flex items-center justify-between p-2 sm:p-2.5 rounded-xl cursor-pointer border transition-all duration-200 flex-shrink-0 ${
+                        className={`group relative flex items-start justify-between p-2.5 sm:p-3 rounded-xl sm:rounded-2xl cursor-pointer border transition-all duration-200 min-h-[58px] gap-2.5 flex-shrink-0 ${
                           isDone
                             ? theme === 'dark'
-                              ? 'bg-[#0B2B26]/40 border-[#8EB69B]/10 opacity-45'
+                              ? 'bg-[#0B2B26]/40 border-[#8EB69B]/10 opacity-50'
                               : 'neu-sunken opacity-60'
                             : theme === 'dark'
                             ? `${pillBgDark} backdrop-blur-md border-[#8EB69B]/20 hover:border-[#8EB69B]/50 hover:scale-[1.005]`
                             : 'neu-card hover:scale-[1.005]'
                         }`}
                       >
-                        <div className="flex items-start gap-2 min-w-0">
-                          <button type="button" className="mt-0.5 text-[#8EB69B] focus:outline-none transition-transform active:scale-90 flex-shrink-0">
+                        {/* Left: Checkbox + Content (Wraps cleanly without cutoffs) */}
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <button 
+                            type="button" 
+                            className="mt-0.5 text-[#8EB69B] focus:outline-none transition-transform active:scale-90 flex-shrink-0"
+                            aria-label={isDone ? "Mark incomplete" : "Mark complete"}
+                          >
                             {isDone ? (
-                              <div className="w-3.5 h-3.5 rounded-full bg-[#8EB69B] text-[#051F20] flex items-center justify-center font-bold">
+                              <div className="w-4 h-4 rounded-full bg-[#8EB69B] text-[#051F20] flex items-center justify-center font-bold">
                                 <Icon name="check" className="w-2.5 h-2.5" />
                               </div>
                             ) : (
-                              <div className={`w-3.5 h-3.5 rounded-full border-2 transition-colors ${
+                              <div className={`w-4 h-4 rounded-full border-2 transition-colors ${
                                 theme === 'dark' ? 'border-[#8EB69B]/50 group-hover:border-[#DAF1DE]' : 'border-[#8EB69B] group-hover:border-[#235347]'
                               }`} />
                             )}
                           </button>
 
-                          <div className="min-w-0">
-                            <div className={`text-[10px] sm:text-xs font-semibold truncate transition-all ${
+                          <div className="min-w-0 flex-1">
+                            {/* Full Title with clean word-wrapping */}
+                            <div className={`text-[11px] sm:text-xs font-semibold break-words leading-snug transition-all ${
                               isDone ? 'line-through text-[#8EB69B]/60' : (theme === 'dark' ? 'text-[#DAF1DE]' : 'text-[#0B2B26]')
                             }`}>
                               {m.title}
                             </div>
-                            {!isCompact && (
-                              <div className="text-[8px] sm:text-[9px] text-[#8EB69B] font-sans mt-0.5 line-clamp-1">{m.desc}</div>
+
+                            {/* Full Description with clean word-wrapping */}
+                            {!isCompact && m.desc && (
+                              <div className="text-[9px] sm:text-[10px] text-[#8EB69B] font-sans mt-0.5 break-words leading-snug opacity-90">
+                                {m.desc}
+                              </div>
                             )}
-                            <div className="text-[7px] sm:text-[8px] font-mono text-[#8EB69B]/70 mt-0.5 flex items-center gap-1">
+
+                            {/* Date Badge */}
+                            <div className="text-[8px] sm:text-[9px] font-mono text-[#8EB69B]/75 mt-1 flex items-center gap-1">
                               <Icon name="calendar" className="w-2.5 h-2.5 flex-shrink-0" />
                               <span>{m.dateStr}</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex flex-col items-end gap-1 ml-2 flex-shrink-0">
-                          <span className={`text-[7px] sm:text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
+                        {/* Right: Tag Badge & +GCal Button - Symmetrically anchored to the top line */}
+                        <div className="flex flex-col items-end justify-start gap-1.5 flex-shrink-0 pt-0.5">
+                          <span className={`text-[8px] sm:text-[9px] font-mono font-bold px-2 py-0.5 rounded-md text-center min-w-[36px] ${
                             isDone
                               ? 'bg-[#8EB69B]/20 text-[#8EB69B] border border-[#8EB69B]/30'
                               : theme === 'dark'
@@ -1215,7 +1405,7 @@
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="opacity-75 sm:opacity-0 group-hover:opacity-100 transition-opacity text-[7px] sm:text-[8px] font-mono text-[#8EB69B] hover:text-[#DAF1DE] hover:underline flex items-center gap-0.5"
+                              className="opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity text-[8px] sm:text-[9px] font-mono text-[#8EB69B] hover:text-[#DAF1DE] hover:underline flex items-center gap-0.5 mt-0.5"
                               title="Add event to Google Calendar"
                             >
                               <span>+GCal</span>
@@ -1276,7 +1466,7 @@
               </div>
             </div>
 
-            <div className="w-full sm:w-auto flex flex-wrap items-center justify-end gap-2">
+            <div className="w-full sm:w-auto flex flex-wrap items-center justify-center sm:justify-end gap-2">
               <button
                 onClick={() => {
                   setTempTitle(targetTitle);
@@ -1357,7 +1547,7 @@
             }`}>
               <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-mono tracking-wider bg-[#235347] text-[#DAF1DE] border border-[#8EB69B]/40 shadow-xl flex items-center gap-2 max-w-[90vw] text-center justify-center">
                 <span className="w-2 h-2 rounded-full bg-[#8EB69B] animate-ping flex-shrink-0"></span>
-                <span>
+                <span className="truncate">
                   {activeDragId ? `DRAGGING: ${activeDragId.toUpperCase()} • HOVER [C:${hoverCoord?.col || 1}, R:${hoverCoord?.row || 1}]` :
                    resizingId ? `RESIZING: ${resizingId.id.toUpperCase()} (${resizingId.direction.toUpperCase()}) • DRAG TO SCALE` :
                    "GRID COORDINATE MODE • DRAG ANYWHERE OR RESIZE CORNER"}
@@ -1393,13 +1583,13 @@
                 >
                   {isEditMode && (
                     <div className="absolute -top-3 left-3 z-30 flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-[#163832] text-[#DAF1DE] border border-[#8EB69B]/40 shadow-md">
+                      <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-[#163832] text-[#DAF1DE] border border-[#8EB69B]/40 shadow-md whitespace-nowrap">
                         Col {item.col} • Row {item.row} ({item.w}x{item.h})
                       </span>
                       <button
                         onClick={(e) => cycleWidgetPreset(widgetId, e)}
                         className="px-1.5 py-0.5 rounded-md text-[8px] font-mono bg-[#235347] text-[#DAF1DE] hover:bg-[#0B2B26] border border-[#8EB69B]/30"
-                        title="Preset resize"
+                        title="Cycle size presets"
                       >
                         Auto-Fit
                       </button>
@@ -1408,7 +1598,7 @@
 
                   {renderWidgetContent(widgetId)}
 
-                  {/* 4 Corner Handles */}
+                  {/* 4 Corner Handles with expanded hit targets */}
                   <div onPointerDown={(e) => handleStartResize(widgetId, 'nw', e)} className="resize-handle-corner handle-nw select-none">
                     <div className="handle-indicator-corner pointer-events-none" />
                   </div>
@@ -1422,17 +1612,17 @@
                     <div className="handle-indicator-corner pointer-events-none" />
                   </div>
 
-                  {/* 4 Edge Handles */}
-                  <div onPointerDown={(e) => handleStartResize(widgetId, 'n', e)} className="resize-handle-edge handle-n select-none flex items-center justify-center">
+                  {/* 4 Edge Handles with expanded hit targets */}
+                  <div onPointerDown={(e) => handleStartResize(widgetId, 'n', e)} className="resize-handle-edge handle-n select-none">
                     <div className="w-8 h-1 handle-indicator-edge pointer-events-none" />
                   </div>
-                  <div onPointerDown={(e) => handleStartResize(widgetId, 's', e)} className="resize-handle-edge handle-s select-none flex items-center justify-center">
+                  <div onPointerDown={(e) => handleStartResize(widgetId, 's', e)} className="resize-handle-edge handle-s select-none">
                     <div className="w-8 h-1 handle-indicator-edge pointer-events-none" />
                   </div>
-                  <div onPointerDown={(e) => handleStartResize(widgetId, 'w', e)} className="resize-handle-edge handle-w select-none flex items-center justify-center">
+                  <div onPointerDown={(e) => handleStartResize(widgetId, 'w', e)} className="resize-handle-edge handle-w select-none">
                     <div className="w-1 h-8 handle-indicator-edge pointer-events-none" />
                   </div>
-                  <div onPointerDown={(e) => handleStartResize(widgetId, 'e', e)} className="resize-handle-edge handle-e select-none flex items-center justify-center">
+                  <div onPointerDown={(e) => handleStartResize(widgetId, 'e', e)} className="resize-handle-edge handle-e select-none">
                     <div className="w-1 h-8 handle-indicator-edge pointer-events-none" />
                   </div>
                 </div>
@@ -1560,7 +1750,7 @@
                     </button>
                   </div>
 
-                  {/* Active Milestones List with Delete option */}
+                  {/* Active Milestones List with Wrapped Full Line Title */}
                   <div className="space-y-2 pt-3 border-t border-[#8EB69B]/15">
                     <h4 className="font-mono uppercase text-[10px] text-[#8EB69B] font-bold tracking-wider">
                       Current Milestones ({milestones.length})
@@ -1569,18 +1759,18 @@
                       {milestones.map((m) => (
                         <div
                           key={m.id}
-                          className={`flex items-center justify-between p-2 rounded-lg border text-[11px] ${
+                          className={`flex items-start justify-between p-2 rounded-lg border text-[11px] gap-2 ${
                             theme === 'dark' ? 'bg-[#051F20]/70 border-[#8EB69B]/15 text-[#DAF1DE]' : 'bg-white border-[#8EB69B]/30 text-[#0B2B26]'
                           }`}
                         >
-                          <div className="min-w-0 pr-2">
+                          <div className="min-w-0 pr-2 flex-1">
                             <span className="font-mono font-bold text-[#8EB69B] mr-1.5">[{m.tag}]</span>
-                            <span className="font-medium truncate">{m.title}</span>
-                            <span className="block text-[9px] font-mono text-[#8EB69B]/70">{m.dateStr}</span>
+                            <span className="font-medium break-words leading-snug">{m.title}</span>
+                            <span className="block text-[9px] font-mono text-[#8EB69B]/70 mt-0.5">{m.dateStr}</span>
                           </div>
                           <button
                             onClick={() => handleDeleteMilestone(m.id)}
-                            className="p-1 rounded text-red-400 hover:text-red-300 hover:bg-red-500/10 flex-shrink-0"
+                            className="p-1 rounded text-red-400 hover:text-red-300 hover:bg-red-500/10 flex-shrink-0 mt-0.5"
                             title="Delete milestone"
                           >
                             <Icon name="trash" className="w-3.5 h-3.5" />
@@ -1653,12 +1843,15 @@
                           href={generateGCalUrl(m)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`flex items-center justify-between p-2 sm:p-2.5 rounded-xl border text-[10px] sm:text-[11px] font-mono transition-colors ${
+                          className={`flex items-start justify-between p-2 sm:p-2.5 rounded-xl border text-[10px] sm:text-[11px] font-mono transition-colors gap-2 ${
                             theme === 'dark' ? 'hover:bg-white/5 border-[#8EB69B]/15 text-[#DAF1DE]' : 'hover:bg-[#DAF1DE]/40 border-[#8EB69B]/30 text-[#0B2B26]'
                           }`}
                         >
-                          <span className="truncate mr-2">{m.tag}: {m.title}</span>
-                          <span className="text-[#8EB69B] font-semibold flex items-center gap-1 flex-shrink-0">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-[#8EB69B] mr-1.5">[{m.tag}]</span>
+                            <span className="break-words leading-snug">{m.title}</span>
+                          </div>
+                          <span className="text-[#8EB69B] font-semibold flex items-center gap-1 flex-shrink-0 pt-0.5">
                             Add <Icon name="external-link" className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           </span>
                         </a>
