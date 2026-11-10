@@ -2094,3 +2094,28 @@ node scripts/test_runner.js
 | 19 | Mobile Viewport | Date Badges Use `whitespace-nowrap` | **PASS** |
 | 20 | Visual Validation | Dark & Light High-Resolution Mobile Screenshots | **PASS** |
 
+---
+
+## 9. Design System Architecture: Obsidian Titanium & Porcelain Gallery (Anti-Vibe Design)
+
+In production software development, "vibe-coded" aesthetics—defined by muddy clay shadows, extraneous coordinates and math badges (`C:5 R:1 [4x3]`), cartoon jiggle animations, low-contrast text clipping, and harsh multi-color rainbow gradients—undermine user trust and create visual noise.
+
+The dashboard UI was comprehensively elevated to match the craftsmanship standard of Apple Studio, Linear, and Vercel.
+
+### 9.1 Design Pillars
+1. **Restrained Color Palettes**:
+   - **Dark Mode (Obsidian Titanium)**: Background `#090A0F` (deep obsidian canvas) with an ambient top emerald radial glow (`rgba(16, 185, 129, 0.05)`). Cards use `rgba(18, 22, 31, 0.78)` glass with crisp `rgba(255, 255, 255, 0.08)` borders and subtle specular highlights.
+   - **Light Mode (Porcelain Gallery)**: Background `#F8FAFC` (pure crisp slate), cards in pure white `#FFFFFF` with multi-tier micro-shadows (`box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)`) and `border-slate-200/80` borders. No plastic clay or swamp green wash.
+2. **Typography & Hierarchy**:
+   - High-precision Inter / Geist system font stack with standard `tabular-nums` for numeric countdowns and clock seconds to prevent character jitter.
+   - Micro-badges use uppercase tracking (`tracking-wider`, `text-[10px]`, font weight 600).
+   - Milestone cards feature a clean, unified surface with emerald-themed active highlights rather than alternating rainbow hues.
+3. **De-Cluttered Information Architecture**:
+   - Internal grid coordinates (`C:5 R:1 [4x3]`) are removed from standard production card headers and reserved strictly for active dragging/layout debug states.
+   - Unprofessional `.widget-jiggle` cartoon animations were eliminated in favor of subtle border glows and scale micro-transitions.
+   - Timezone controls use Apple iOS-style segmented pill capsules with fluid sliding highlights.
+4. **Jewel Resize & Interaction Handles**:
+   - Resize handles are subtle corner notches (`rounded-tl-[4px]`) that reveal on card hover with an emerald glow.
+   - Hit target physics are preserved at `>= 28px` for touch devices while visually occupying only a discreet 6x6px corner indicator.
+
+

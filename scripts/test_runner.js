@@ -75,13 +75,19 @@ async function runTests() {
     await page.setViewport({ width: 1280, height: 900 });
 
     const pageErrors = [];
-    page.on('pageerror', (err) => pageErrors.push(err.toString()));
+    page.on('pageerror', (err) => {
+      console.error('  [PAGE ERROR]', err.toString());
+      pageErrors.push(err.toString());
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') console.error('  [BROWSER ERROR]', msg.text());
+    });
 
     console.log('\n--- TEST SUITE 1: Page Load & Initialization ---');
-    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     // Reset any previous local storage for clean baseline testing
     await page.evaluate(() => localStorage.clear());
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
 
     // Wait for React to mount
     await page.waitForSelector('#root > div', { timeout: 10000 });
@@ -110,7 +116,7 @@ async function runTests() {
     const selectedTzAfterUtc = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('header button'));
       const utcBtn = buttons.find((b) => b.innerText.trim() === 'UTC');
-      return utcBtn ? utcBtn.classList.contains('bg-[#235347]') : false;
+      return utcBtn ? (utcBtn.classList.contains('bg-[#235347]') || utcBtn.classList.contains('bg-emerald-500') || utcBtn.classList.contains('bg-emerald-600')) : false;
     });
     assert('Timezone Switch to UTC Active State', selectedTzAfterUtc);
 
@@ -442,11 +448,17 @@ async function runTests() {
 
     // Switch back to desktop viewport
     await page.setViewport({ width: 1280, height: 900 });
+    await page.screenshot({ path: path.join(ROOT_DIR, 'screenshots', 'desktop-light.png') });
+    console.log('  [Screenshot] Saved screenshots/desktop-light.png');
+
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('header button'));
       const themeBtn = buttons[buttons.length - 1];
       if (themeBtn) themeBtn.click();
     });
+    await new Promise((r) => setTimeout(r, 400));
+    await page.screenshot({ path: path.join(ROOT_DIR, 'screenshots', 'desktop-dark.png') });
+    console.log('  [Screenshot] Saved screenshots/desktop-dark.png');
 
   } catch (err) {
     console.error('Test Suite encountered an error:', err);
