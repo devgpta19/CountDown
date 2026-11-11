@@ -112,8 +112,14 @@
     .dashboard-grid {
       display: grid;
       grid-template-columns: repeat(8, minmax(0, 1fr));
-      grid-auto-rows: minmax(44px, auto);
+      grid-auto-rows: 44px;
       gap: 16px;
+    }
+
+    .dashboard-widget {
+      min-height: 44px;
+      height: 100%;
+      overflow: hidden;
     }
 
     @media (max-width: 639px) {
@@ -125,10 +131,13 @@
       .dashboard-widget {
         width: 100% !important;
         min-width: 100% !important;
+        height: calc(var(--widget-h, 6) * 44px + (var(--widget-h, 6) - 1) * 16px) !important;
+        min-height: 44px !important;
+        overflow: hidden !important;
         order: var(--widget-order, 0);
       }
-      /* Hide horizontal edge resize handles on mobile since widgets are full width */
-      .handle-w, .handle-e, .handle-nw, .handle-ne, .handle-sw, .handle-se {
+      /* Hide horizontal and top resize handles on mobile since widgets are full width */
+      .handle-w, .handle-e, .handle-nw, .handle-ne, .handle-sw, .handle-se, .handle-n {
         display: none !important;
       }
     }
@@ -833,15 +842,22 @@
             let newW = origW;
             let newH = origH;
 
-            // East / West (Horizontal resizing)
-            if (direction.includes('e')) {
-              newW = Math.max(limits.minW, Math.min(8 - origCol + 1, origW + deltaCols));
-            } else if (direction.includes('w')) {
-              const maxShrink = origW - limits.minW;
-              const maxExpandLeft = origCol - 1;
-              const clampedDelta = Math.min(maxShrink, Math.max(-maxExpandLeft, deltaCols));
-              newCol = origCol + clampedDelta;
-              newW = origW - clampedDelta;
+            // Mobile viewport lock: widgets on mobile are full width (col 1, w 8)
+            const isMobileViewport = typeof window !== 'undefined' && window.innerWidth <= 639;
+            if (isMobileViewport) {
+              newCol = 1;
+              newW = 8;
+            } else {
+              // East / West (Horizontal resizing)
+              if (direction.includes('e')) {
+                newW = Math.max(limits.minW, Math.min(8 - origCol + 1, origW + deltaCols));
+              } else if (direction.includes('w')) {
+                const maxShrink = origW - limits.minW;
+                const maxExpandLeft = origCol - 1;
+                const clampedDelta = Math.min(maxShrink, Math.max(-maxExpandLeft, deltaCols));
+                newCol = origCol + clampedDelta;
+                newW = origW - clampedDelta;
+              }
             }
 
             // South / North (Vertical resizing)
@@ -1765,17 +1781,22 @@
               const isDragging = activeDragId === widgetId;
               const isResizingThis = resizingId && resizingId.id === widgetId;
               const isWidgetMin = !!minimized[widgetId] || item.h <= 1;
+              const currentEffectiveH = isWidgetMin ? 1 : Math.max(1, item.h);
 
               const gridStyle = {
                 gridColumn: `${Math.max(1, Math.min(8, item.col))} / span ${Math.max(1, Math.min(8, item.w))}`,
-                gridRow: `${Math.max(1, item.row)} / span ${isWidgetMin ? 1 : Math.max(1, item.h)}`
+                gridRow: `${Math.max(1, item.row)} / span ${currentEffectiveH}`
               };
 
               return (
                 <div
                   key={widgetId}
                   data-widget={widgetId}
-                  style={{ ...gridStyle, '--widget-order': (item.row * 10) + item.col }}
+                  style={{
+                    ...gridStyle,
+                    '--widget-order': (item.row * 10) + item.col,
+                    '--widget-h': currentEffectiveH
+                  }}
                   className={`dashboard-widget group relative transition-all duration-200 flex flex-col ${
                     isEditMode ? 'ring-1 ring-emerald-500/40 bg-emerald-500/[0.01]' : ''
                   } ${isDragging ? 'widget-dragging' : ''} ${

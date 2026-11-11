@@ -2118,4 +2118,51 @@ The dashboard UI was comprehensively elevated to match the craftsmanship standar
    - Resize handles are subtle corner notches (`rounded-tl-[4px]`) that reveal on card hover with an emerald glow.
    - Hit target physics are preserved at `>= 28px` for touch devices while visually occupying only a discreet 6x6px corner indicator.
 
+---
+
+## 10. Root Cause Analysis & Architecture: Gradual Resizing & Zero-Downward-Drift Compaction
+
+### 10.1 The Dual Symptoms Reported
+1. **Gradual Resizing Failure**: When resizing components, the height did not increase 1-by-1 with user movement; it remained static up to a large threshold (~row 14) and then suddenly jumped.
+2. **Compaction Downward Drift**: When compacting (shrinking) a component upward, other components below it unexpectedly drifted down the page instead of floating up.
+
+### 10.2 Root Cause Analysis
+
+#### 1. CSS Grid `grid-auto-rows: minmax(44px, auto)` Track Expansion
+- In CSS Grid specification (§ 11.5), tracks sized with `auto` expand or contract to accommodate the intrinsic content of the items spanning them.
+- When `milestones` has 6 roadmap items, its natural content is ~693px tall.
+- Under `minmax(44px, auto)`:
+  - Spanning 6 rows: CSS Grid allocated `693px / 6 = ~115px` per row.
+  - Spanning 7 rows: CSS Grid allocated `693px / 7 = ~99px` per row. Total = 693px.
+  - Spanning 8 rows: CSS Grid allocated `693px / 8 = ~86px` per row. Total = 693px.
+  - Spanning 11 rows: CSS Grid allocated `693px / 11 = ~63px` per row. Total = 693px.
+  - The outer card height **never increased by even 1 pixel** until `h = 12..14` (when `14 * 44px min-height = 616px`), causing a sudden delayed jump.
+- Conversely, when compacting `milestones` from 6 to 4 rows:
+  - Rows 1..4 expanded to absorb all 693px.
+  - Rows 5 and 6 (which `countdown` in the left column still spanned) were now outside `milestones` and each added an extra 60px (`44px + 16px gap`).
+  - Total vertical grid span grew from 693px to `693px + 120px = 813px`, pushing `progress` **down** by 120px!
+
+#### 2. Mobile Viewport Flexbox vs 2D Matrix Disconnect
+- In mobile screens (`< 640px`), `.dashboard-grid` used `display: flex !important; flex-direction: column !important;`.
+- In CSS `display: flex`, CSS Grid's `grid-row: span H` is completely ignored by browsers.
+- As a result, changing `h` during drag had 0 visual height effect on mobile.
+- Meanwhile, `packLayout` recomputed 2D matrix rows, altering `--widget-order: (item.row * 10) + item.col`, causing components to spontaneously flip or plummet to the bottom of the column.
+
+### 10.3 The Root Architectural Fix
+
+1. **Deterministic Fixed Row Tracks**:
+   - Replaced `grid-auto-rows: minmax(44px, auto)` with fixed `grid-auto-rows: 44px`.
+   - Applied `height: 100%`, `min-height: 44px`, and `overflow: hidden` to `.dashboard-widget`.
+   - Content containers now utilize `flex-1 min-h-0 overflow-y-auto` so content scrolls gracefully while the card container matches its row span 1:1.
+   - Every single row step (`h: 1, 2, 3...`) adds or removes **exactly 60px** (`44px row + 16px gap`).
+2. **Deterministic Mobile Dynamic Height**:
+   - On screens `< 640px`, `.dashboard-widget` is dynamically bound to:
+     ```css
+     height: calc(var(--widget-h, 6) * 44px + (var(--widget-h, 6) - 1) * 16px) !important;
+     ```
+   - On pointer drag, the widget expands or compacts by 60px per row directly in flexbox, immediately pulling lower widgets up when compacting and pushing them down when expanding.
+3. **Viewport Dimension Lock**:
+   - Enforced `newCol = 1` and `newW = 8` on mobile viewports so horizontal twitching or accidental diagonal drag never alters columns or triggers 2D column collision displacements.
+
+
 
